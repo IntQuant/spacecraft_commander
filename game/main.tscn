@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://7re1vthy7p8w"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_xfjes"]
+size = Vector2(16, 16)
+
+[node name="GameClass" type="GameClass"]
+
+[node name="Player" type="Player" parent="."]
+position = Vector2(461, 288)
+texture = SubResource("PlaceholderTexture2D_xfjes")
