@@ -1,7 +1,6 @@
-use godot::{
-    engine::{RenderingServer, Sprite2D, Sprite2DVirtual},
-    prelude::*,
-};
+use std::time::{Duration, Instant};
+
+use godot::{engine::RenderingServer, prelude::*};
 
 mod universe;
 
@@ -11,39 +10,10 @@ struct MyExtension;
 unsafe impl ExtensionLibrary for MyExtension {}
 
 #[derive(GodotClass)]
-#[class(base=Sprite2D)]
-struct Player {
-    //speed: f64,
-    angular_speed: f64,
-
-    #[base]
-    sprite: Base<Sprite2D>,
-}
-
-#[godot_api]
-impl Sprite2DVirtual for Player {
-    fn init(sprite: Base<Sprite2D>) -> Self {
-        godot_print!("Hello, world!"); // Prints to the Godot console
-
-        Self {
-            //speed: 400.0,
-            angular_speed: std::f64::consts::PI,
-            sprite,
-        }
-    }
-    fn physics_process(&mut self, delta: f64) {
-        // In GDScript, this would be:
-        // rotation += angular_speed * delta
-
-        self.sprite.rotate((self.angular_speed * delta) as f32);
-        // The 'rotate' method requires a f32,
-        // therefore we convert 'self.angular_speed * delta' which is a f64 to a f32
-    }
-}
-
-#[derive(GodotClass)]
 #[class(base=Node3D)]
 struct GameClass {
+    started: Instant,
+
     #[base]
     base: Base<Node3D>,
 }
@@ -51,13 +21,32 @@ struct GameClass {
 #[godot_api]
 impl Node3DVirtual for GameClass {
     fn init(base: Base<Self::Base>) -> Self {
-        Self { base }
+        Self {
+            base,
+            started: Instant::now(),
+        }
     }
     fn ready(&mut self) {
         RenderingServer::singleton().connect(
             "frame_pre_draw".into(),
             Callable::from_object_method(self.base.get_node_as::<Self>("."), "frame_pre_draw"),
         );
+        let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
+        for i in 0..10 {
+            let node = wall_scene.instantiate().unwrap();
+            node.clone().cast::<Node3D>().set_position(Vector3 {
+                x: (i as f32) * 3.5,
+                y: 0.0,
+                z: 0.0,
+            });
+            node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
+                x: -90.0,
+                y: 0.0,
+                z: 0.0,
+            });
+            //node.set_name("wall".into());
+            self.base.add_child(node);
+        }
     }
 }
 
@@ -65,6 +54,14 @@ impl Node3DVirtual for GameClass {
 impl GameClass {
     #[func]
     fn frame_pre_draw(&mut self) {
-        godot_print!("pre_draw");
+        //godot_print!("pre_draw");
+
+        // self.base
+        //     .get_node_as::<Node3D>("wall")
+        //     .set_position(Vector3 {
+        //         x: self.started.elapsed().as_secs_f32() % 10.0,
+        //         y: 0.0,
+        //         z: 0.0,
+        //     })
     }
 }
