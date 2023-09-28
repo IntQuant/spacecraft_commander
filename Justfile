@@ -1,3 +1,6 @@
+check:
+    cd rust && cargo check
+
 build:
     cd rust && cargo build
 

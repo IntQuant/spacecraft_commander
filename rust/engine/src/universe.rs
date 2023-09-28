@@ -8,3 +8,11 @@ pub(crate) struct Vessel {}
 pub(crate) struct Universe {
     pub(crate) vessels: IndexMap<VesselID, Vessel>,
 }
+
+impl Universe {
+    pub fn new() -> Self {
+        Self {
+            vessels: Default::default(),
+        }
+    }
+}

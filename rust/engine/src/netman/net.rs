@@ -1,0 +1,241 @@
+use std::{
+    convert::Infallible,
+    marker::PhantomData,
+    result,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+
+use aes_gcm::{
+    aead::{consts::U12, Aead},
+    Aes256Gcm, KeyInit, Nonce,
+};
+use rand_core::OsRng;
+use serde::{de::DeserializeOwned, Serialize};
+use socket2::{SockRef, TcpKeepalive};
+use thiserror::Error;
+use tokio::{
+    io::{self, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
+    net::{
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
+        TcpStream,
+    },
+    sync::mpsc,
+};
+use tracing::{debug, info, trace, warn};
+use x25519_dalek::{EphemeralSecret, PublicKey};
+
+const MAX_PACKET_LEN: usize = 1024 * 1024 * 1024;
+
+pub type Result<T> = result::Result<T, NetworkError>;
+
+#[derive(Debug)]
+pub enum MalformedReason {
+    Serialization,
+    Encryption,
+}
+
+#[derive(Debug, Error)]
+pub enum NetworkError {
+    #[error("Received unexpected data from the other side, reason: {:?}", .0)]
+    MalformedData(MalformedReason),
+    #[error("IO error: {}", .0)]
+    IOError(#[from] io::Error),
+    #[error("{}", .0)]
+    Misc(String),
+    //#[error("Can't continue working in current state")]
+    //ShouldStop,
+}
+
+impl NetworkError {
+    pub fn new(desc: String) -> Self {
+        Self::Misc(desc)
+    }
+}
+
+impl From<bincode::Error> for NetworkError {
+    fn from(_value: bincode::Error) -> Self {
+        Self::MalformedData(MalformedReason::Serialization)
+    }
+}
+
+struct NonceCounter(u128);
+
+impl NonceCounter {
+    fn next(&mut self) -> Nonce<U12> {
+        let nonce_buf = self.0.to_le_bytes();
+        self.0 += 2;
+        *Nonce::from_slice(&nonce_buf[..12])
+    }
+}
+
+pub struct WrappedReader<R> {
+    reader: BufReader<OwnedReadHalf>,
+    buffer: Vec<u8>,
+    cipher: Arc<Aes256Gcm>,
+    nonce: NonceCounter,
+    phantom: PhantomData<R>,
+}
+
+pub struct WrappedWriter<S> {
+    writer: BufWriter<OwnedWriteHalf>,
+    cipher: Arc<Aes256Gcm>,
+    nonce: NonceCounter,
+    phantom: PhantomData<S>,
+}
+
+impl<R: DeserializeOwned> WrappedReader<R> {
+    pub async fn read(&mut self) -> Result<(R, usize)> {
+        let len = self.reader.read_u32().await? as usize;
+        debug!("Packet len: {len}");
+        if len > MAX_PACKET_LEN {
+            return Err(NetworkError::new(format!(
+                "Encountered a packed with a len of {len}, which is too long"
+            )));
+        }
+        if len > self.buffer.len() {
+            self.buffer.resize(len, 0)
+        }
+        self.reader.read_exact(&mut self.buffer[..len]).await?;
+        let nonce = self.nonce.next();
+        let decrypted = self
+            .cipher
+            .decrypt(&nonce, &self.buffer[..len])
+            .map_err(|_e| NetworkError::MalformedData(MalformedReason::Encryption))?;
+        Ok((bincode::deserialize(&decrypted)?, 4 + len))
+    }
+}
+
+impl<S: Serialize> WrappedWriter<S> {
+    pub async fn write(&mut self, msg: S) -> Result<usize> {
+        let serialized = bincode::serialize(&msg)?;
+
+        let nonce = self.nonce.next();
+        let msg = self.cipher.encrypt(&nonce, serialized.as_ref()).unwrap();
+        let len = msg.len();
+        self.writer.write_u32(len as u32).await?; // TODO use u8 for size where possible
+        trace!("Sending {len} bytes");
+        if len > MAX_PACKET_LEN {
+            return Err(NetworkError::new(format!(
+                "Encountered a packed with a len of {len}, which is too long"
+            )));
+        }
+        self.writer.write_all(&msg).await?;
+        self.writer.flush().await?;
+        Ok(4 + msg.len())
+    }
+}
+
+pub async fn wrap_and_split<R, S>(
+    mut stream: TcpStream,
+) -> Result<(WrappedReader<R>, WrappedWriter<S>)> {
+    let keepalive = TcpKeepalive::new().with_time(Duration::from_secs(30));
+    SockRef::from(&stream).set_tcp_keepalive(&keepalive)?;
+
+    let secret = EphemeralSecret::random_from_rng(OsRng);
+    let public = PublicKey::from(&secret);
+
+    let as_bytes = public.as_bytes();
+    stream.write_all(as_bytes).await?;
+    let mut their_public = [0u8; 32];
+    stream.read_exact(&mut their_public).await?;
+    let shared_secret = secret
+        .diffie_hellman(&PublicKey::from(their_public))
+        .to_bytes();
+    let cipher = Arc::new(Aes256Gcm::new_from_slice(&shared_secret).unwrap());
+
+    let (reader_nonce, writer_nonce) = if public.as_bytes() < &their_public {
+        debug!("Lesser public key");
+        (NonceCounter(0), NonceCounter(1))
+    } else {
+        debug!("Greater public key");
+        (NonceCounter(1), NonceCounter(0))
+    };
+
+    let (reader, writer) = stream.into_split();
+    Ok((
+        WrappedReader {
+            reader: BufReader::new(reader),
+            buffer: vec![0; 1024],
+            cipher: cipher.clone(),
+            nonce: writer_nonce,
+            phantom: PhantomData,
+        },
+        WrappedWriter {
+            writer: BufWriter::new(writer),
+            cipher,
+            nonce: reader_nonce,
+            phantom: PhantomData,
+        },
+    ))
+}
+struct RemoteEndpointShared {
+    running: AtomicBool,
+    received_count: AtomicUsize,
+    sent_count: AtomicUsize,
+}
+
+impl RemoteEndpointShared {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            running: AtomicBool::new(true),
+            received_count: AtomicUsize::new(0),
+            sent_count: AtomicUsize::new(0),
+        })
+    }
+
+    async fn reader_move_to_channel<R>(
+        &self,
+        mut reader: WrappedReader<R>,
+        sender: mpsc::Sender<R>,
+    ) -> Result<()>
+    where
+        R: DeserializeOwned + Send + 'static,
+    {
+        loop {
+            let (val, size_read) = reader.read().await?;
+            if let Err(_) = sender.send(val).await {
+                return Ok(());
+            }
+            self.received_count.fetch_add(size_read, Ordering::Relaxed);
+        }
+    }
+}
+
+pub struct RemoteEndpoint<R, S> {
+    receiver: mpsc::Receiver<R>,
+    sender: mpsc::Sender<S>,
+}
+
+impl<R, S> RemoteEndpoint<R, S>
+where
+    R: DeserializeOwned + Send + 'static,
+    S: Serialize + Send,
+{
+    pub async fn new(stream: TcpStream) -> Result<Self> {
+        if let Err(err) = stream.set_nodelay(true) {
+            info!("Could not enable tcp nodelay: {}", err);
+        }
+        let shared = RemoteEndpointShared::new();
+        let (reader, writer) = wrap_and_split::<R, S>(stream).await?;
+        let (sender, receiver) = mpsc::channel(16);
+        let (sender2, receiver2) = mpsc::channel(16);
+        tokio::spawn({
+            let shared = shared.clone();
+            async move {
+                if let Err(err) = shared.reader_move_to_channel(reader, sender).await {
+                    warn!("Connection error: {}", err);
+                };
+                info!("Connection lost");
+                shared.running.store(false, Ordering::Release)
+            }
+        });
+        Ok(Self {
+            receiver,
+            sender: sender2,
+        })
+    }
+}

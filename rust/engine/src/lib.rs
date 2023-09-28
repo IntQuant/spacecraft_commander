@@ -1,7 +1,12 @@
-use std::time::{Duration, Instant};
+use std::sync::{atomic::AtomicBool, OnceLock};
 
 use godot::{engine::RenderingServer, prelude::*};
+use tokio::runtime::{EnterGuard, Runtime};
+use tracing::{info, Level};
+use tracing_subscriber::FmtSubscriber;
+use universe::Universe;
 
+mod netman;
 mod universe;
 
 struct MyExtension;
@@ -9,11 +14,47 @@ struct MyExtension;
 #[gdextension]
 unsafe impl ExtensionLibrary for MyExtension {}
 
+static FIRST_INIT_COMPLETED: AtomicBool = AtomicBool::new(false);
+static TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+fn maybe_first_init() {
+    if !FIRST_INIT_COMPLETED.load(std::sync::atomic::Ordering::Acquire) {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::INFO)
+            .finish();
+
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+        info!("First-time init has been performed");
+        FIRST_INIT_COMPLETED.store(true, std::sync::atomic::Ordering::Release);
+    }
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(2)
+        .build()
+        .unwrap();
+
+    TOKIO_RUNTIME
+        .set(runtime)
+        .expect("tokio runtime not created yet");
+}
+
+fn enter_runtime() -> EnterGuard<'static> {
+    let runtime = get_runtime();
+    runtime.enter()
+}
+
+fn get_runtime() -> &'static Runtime {
+    let runtime = TOKIO_RUNTIME
+        .get()
+        .expect("tokio runtime to be initialized");
+    runtime
+}
+
 #[derive(GodotClass)]
 #[class(base=Node3D)]
 struct GameClass {
-    started: Instant,
-
+    universe: Universe,
     #[base]
     base: Base<Node3D>,
 }
@@ -21,9 +62,10 @@ struct GameClass {
 #[godot_api]
 impl Node3DVirtual for GameClass {
     fn init(base: Base<Self::Base>) -> Self {
+        maybe_first_init();
         Self {
             base,
-            started: Instant::now(),
+            universe: Universe::new(),
         }
     }
     fn ready(&mut self) {
