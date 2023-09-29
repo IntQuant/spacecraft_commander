@@ -203,17 +203,35 @@ impl RemoteEndpointShared {
             self.received_count.fetch_add(size_read, Ordering::Relaxed);
         }
     }
+
+    async fn channel_move_to_writer<S>(
+        &self,
+        mut receiver: mpsc::Receiver<S>,
+        mut writer: WrappedWriter<S>,
+    ) -> Result<()>
+    where
+        S: Serialize + Send,
+    {
+        loop {
+            let Some(msg) = receiver.recv().await else {
+                return Ok(());
+            };
+            let size_write = writer.write(msg).await?;
+            self.sent_count.fetch_add(size_write, Ordering::Relaxed);
+        }
+    }
 }
 
 pub struct RemoteEndpoint<R, S> {
     receiver: mpsc::Receiver<R>,
     sender: mpsc::Sender<S>,
+    shared: Arc<RemoteEndpointShared>,
 }
 
 impl<R, S> RemoteEndpoint<R, S>
 where
     R: DeserializeOwned + Send + 'static,
-    S: Serialize + Send,
+    S: Serialize + Send + 'static,
 {
     pub async fn new(stream: TcpStream) -> Result<Self> {
         if let Err(err) = stream.set_nodelay(true) {
@@ -222,7 +240,7 @@ where
         let shared = RemoteEndpointShared::new();
         let (reader, writer) = wrap_and_split::<R, S>(stream).await?;
         let (sender, receiver) = mpsc::channel(16);
-        let (sender2, receiver2) = mpsc::channel(16);
+        let (sender_outbound, receiver_outbound) = mpsc::channel(16);
         tokio::spawn({
             let shared = shared.clone();
             async move {
@@ -233,9 +251,39 @@ where
                 shared.running.store(false, Ordering::Release)
             }
         });
+        tokio::spawn({
+            let shared = shared.clone();
+            async move {
+                if let Err(err) = shared
+                    .channel_move_to_writer(receiver_outbound, writer)
+                    .await
+                {
+                    warn!("Connection error: {}", err);
+                }
+                info!("Connection lost");
+                shared.running.store(false, Ordering::Release)
+            }
+        });
         Ok(Self {
             receiver,
-            sender: sender2,
+            sender: sender_outbound,
+            shared,
         })
+    }
+
+    pub fn try_recv(&mut self) -> Option<R> {
+        self.receiver.try_recv().ok()
+    }
+
+    pub fn send(&mut self, msg: S) {
+        self.sender.blocking_send(msg).ok();
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.shared.running.load(Ordering::Relaxed)
+    }
+
+    pub fn has_space(&self) -> bool {
+        self.sender.capacity() > 4
     }
 }

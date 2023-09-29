@@ -1,11 +1,14 @@
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub(crate) struct VesselID(u128);
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct Vessel {}
 
-pub(crate) struct Universe {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Universe {
     pub(crate) vessels: IndexMap<VesselID, Vessel>,
 }
 
@@ -16,3 +19,6 @@ impl Universe {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum UniverseEvent {}

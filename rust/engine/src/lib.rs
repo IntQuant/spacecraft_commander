@@ -1,6 +1,7 @@
 use std::sync::{atomic::AtomicBool, OnceLock};
 
 use godot::{engine::RenderingServer, prelude::*};
+use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -55,6 +56,7 @@ fn get_runtime() -> &'static Runtime {
 #[class(base=Node3D)]
 struct GameClass {
     universe: Universe,
+    netman: NetmanVariant,
     #[base]
     base: Base<Node3D>,
 }
@@ -66,6 +68,7 @@ impl Node3DVirtual for GameClass {
         Self {
             base,
             universe: Universe::new(),
+            netman: NetmanVariant::start_server().unwrap(),
         }
     }
     fn ready(&mut self) {
