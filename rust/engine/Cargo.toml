@@ -24,3 +24,5 @@ aes-gcm = "*"
 rand_core = {version = "0.6.4", features = ["getrandom"]}
 
 thiserror = "*"
+
+engine_num = {path = "../engine_num"}

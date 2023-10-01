@@ -1,29 +1,46 @@
+use engine_num::Vector3;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
-pub(crate) struct VesselID(u32);
+pub struct VesselID(u32);
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct PlayerID(pub u32);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Vessel {}
+pub struct Vessel {}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Player {
+    position: Vector3,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Universe {
-    pub(crate) vessels: IndexMap<VesselID, Vessel>,
+    pub vessels: IndexMap<VesselID, Vessel>,
+    pub players: IndexMap<PlayerID, Player>,
 }
 
 impl Universe {
     pub fn new() -> Self {
         Self {
             vessels: Default::default(),
+            players: Default::default(),
         }
     }
 
     pub fn process_event(&mut self, event: OwnedUniverseEvent) {
-        todo!()
+        let player_id = event.player_id;
+        match event.event {
+            UniverseEvent::PlayerConnected => {
+                info!("Creating player for {player_id:?}");
+                self.players.entry(player_id).or_insert(Player {
+                    position: Vector3::default(),
+                });
+            }
+        }
     }
 
     pub fn step(&mut self) {
@@ -32,7 +49,9 @@ impl Universe {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum UniverseEvent {}
+pub enum UniverseEvent {
+    PlayerConnected,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OwnedUniverseEvent {

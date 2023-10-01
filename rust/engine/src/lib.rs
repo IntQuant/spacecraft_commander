@@ -1,7 +1,7 @@
 use std::sync::{atomic::AtomicBool, OnceLock};
 
 use godot::{
-    engine::{Os, RenderingServer},
+    engine::{Engine, Os, RenderingServer},
     prelude::*,
 };
 use netman::NetmanVariant;
@@ -29,19 +29,23 @@ fn maybe_first_init() {
 
         tracing::subscriber::set_global_default(subscriber)
             .expect("setting default subscriber failed");
-        info!("First-time init has been performed");
         FIRST_INIT_COMPLETED.store(true, std::sync::atomic::Ordering::Release);
+
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(2)
+            .build()
+            .unwrap();
+
+        TOKIO_RUNTIME
+            .set(runtime)
+            .expect("tokio runtime not created yet");
+
+        let mut engine = Engine::singleton();
+        engine.set_physics_jitter_fix(0.0);
+
+        info!("First-time init has been performed");
     }
-
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(2)
-        .build()
-        .unwrap();
-
-    TOKIO_RUNTIME
-        .set(runtime)
-        .expect("tokio runtime not created yet");
 }
 
 fn enter_runtime() -> EnterGuard<'static> {
@@ -60,7 +64,7 @@ fn get_runtime() -> &'static Runtime {
 #[class(base=Node3D)]
 struct GameClass {
     universe: Universe,
-    netman: NetmanVariant,
+    netman: Option<NetmanVariant>,
     #[base]
     base: Base<Node3D>,
 }
@@ -71,10 +75,20 @@ impl Node3DVirtual for GameClass {
         maybe_first_init();
         let args = Os::singleton().get_cmdline_user_args();
         info!("Args: {:?}", args);
-        let arg1 = String::from(args.get(0));
-        let netman = match arg1.as_str() {
-            "client" => NetmanVariant::connect("127.0.0.1:2300").unwrap(),
-            _ => NetmanVariant::start_server().unwrap(),
+        let netman = if !Engine::singleton().is_editor_hint() {
+            let arg1 = if args.len() > 0 {
+                String::from(args.get(0))
+            } else {
+                "".to_string()
+            };
+            let netman = match arg1.as_str() {
+                "client" => NetmanVariant::connect("127.0.0.1:2300").unwrap(),
+                _ => NetmanVariant::start_server().unwrap(),
+            };
+            Some(netman)
+        } else {
+            info!("Running in editor: skipping init");
+            None
         };
         Self {
             base,
@@ -89,23 +103,28 @@ impl Node3DVirtual for GameClass {
         );
         let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
         for i in 0..10 {
-            let node = wall_scene.instantiate().unwrap();
-            node.clone().cast::<Node3D>().set_position(Vector3 {
-                x: (i as f32) * 3.5,
-                y: 0.0,
-                z: 0.0,
-            });
-            node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
-                x: -90.0,
-                y: 0.0,
-                z: 0.0,
-            });
-            //node.set_name("wall".into());
-            self.base.add_child(node);
+            for j in 0..10 {
+                let node = wall_scene.instantiate().unwrap();
+                node.clone().cast::<Node3D>().set_position(Vector3 {
+                    x: (i as f32) * 3.5,
+                    y: 0.0,
+                    z: (j as f32) * 3.5,
+                });
+                node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
+                    x: -90.0,
+                    y: 0.0,
+                    z: 0.0,
+                });
+                //node.set_name("wall".into());
+                self.base.add_child(node);
+            }
         }
     }
     fn process(&mut self, _dt: f64) {
-        self.netman.process_events(&mut self.universe)
+        self.netman
+            .as_mut()
+            .unwrap()
+            .process_events(&mut self.universe)
     }
 }
 

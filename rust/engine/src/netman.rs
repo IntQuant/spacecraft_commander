@@ -13,7 +13,7 @@ use tracing::{info, warn};
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{OwnedUniverseEvent, PlayerID, Universe},
+    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent},
 };
 
 use self::{
@@ -31,6 +31,7 @@ pub enum NetmanVariant {
 
 pub struct Client {
     endpoint: CRemoteEndpoint,
+    my_id: Option<PlayerID>,
 }
 
 type SRemoteEndpoint = RemoteEndpoint<SentByClient, SentByServer>;
@@ -49,24 +50,35 @@ impl Client {
     fn process_events(&mut self, universe: &mut Universe) {
         while let Some(msg) = self.endpoint.try_recv() {
             match msg {
-                SentByServer::SetUniverse(new_universe) => *universe = new_universe,
+                SentByServer::SetUniverse(new_universe) => {
+                    info!("Setting new universe...");
+                    *universe = new_universe;
+                    info!("Done!")
+                }
                 SentByServer::Event(QueuedEvent::StepUniverse) => universe.step(),
                 SentByServer::Event(QueuedEvent::UniverseEvent(event)) => {
                     universe.process_event(event)
+                }
+                SentByServer::IdAssigned(id) => {
+                    self.my_id = Some(id);
+                    info!("Got id assigned: {:?}", id);
+                    self.endpoint
+                        .send(SentByClient::UniverseEvent(UniverseEvent::PlayerConnected));
                 }
             }
         }
     }
 }
 
-const TICK_TIME: Duration = Duration::from_millis(50);
+const TICK_TIME: Duration = Duration::from_micros(16666);
 
 impl Server {
     fn process_events(&mut self, universe: &mut Universe) {
         while let Ok(mut conn) = self.new_connections.try_recv() {
             conn.send(SentByServer::SetUniverse(universe.clone()));
-            self.player_map
-                .insert(conn.endpoint_id(), PlayerID(conn.endpoint_id().0)); // TODO proper auth
+            let new_id = PlayerID(conn.endpoint_id().0);
+            conn.send(SentByServer::IdAssigned(new_id.clone()));
+            self.player_map.insert(conn.endpoint_id(), new_id); // TODO proper auth
             self.endpoints.push(conn);
         }
         self.endpoints.retain(RemoteEndpoint::is_connected);
@@ -152,11 +164,17 @@ impl NetmanVariant {
         })
         .abort_handle();
 
+        let mut event_queue = VecDeque::new();
+        event_queue.push_back(QueuedEvent::UniverseEvent(OwnedUniverseEvent {
+            player_id: PlayerID(0),
+            event: UniverseEvent::PlayerConnected,
+        }));
+
         Ok(Self::Server(Server {
             new_connections,
             listener_task,
             endpoints: Vec::new(),
-            event_queue: VecDeque::new(),
+            event_queue,
             player_map: HashMap::new(),
             last_tick: Instant::now(),
         }))
@@ -169,13 +187,23 @@ impl NetmanVariant {
             let stream = TcpStream::connect(addr).await?;
             RemoteEndpoint::new(stream, EndpointId(0)).await
         })?;
-        Ok(Self::Client(Client { endpoint }))
+        Ok(Self::Client(Client {
+            endpoint,
+            my_id: None,
+        }))
     }
 
     pub fn process_events(&mut self, universe: &mut Universe) {
         match self {
             NetmanVariant::Client(client) => client.process_events(universe),
             NetmanVariant::Server(server) => server.process_events(universe),
+        }
+    }
+
+    pub fn my_id(&self) -> Option<PlayerID> {
+        match self {
+            NetmanVariant::Client(client) => client.my_id,
+            NetmanVariant::Server(_server) => Some(PlayerID(0)),
         }
     }
 }
