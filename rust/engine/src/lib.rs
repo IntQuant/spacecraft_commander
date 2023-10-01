@@ -1,6 +1,9 @@
 use std::sync::{atomic::AtomicBool, OnceLock};
 
-use godot::{engine::RenderingServer, prelude::*};
+use godot::{
+    engine::{Os, RenderingServer},
+    prelude::*,
+};
 use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
@@ -29,6 +32,7 @@ fn maybe_first_init() {
         info!("First-time init has been performed");
         FIRST_INIT_COMPLETED.store(true, std::sync::atomic::Ordering::Release);
     }
+
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(2)
@@ -65,10 +69,17 @@ struct GameClass {
 impl Node3DVirtual for GameClass {
     fn init(base: Base<Self::Base>) -> Self {
         maybe_first_init();
+        let args = Os::singleton().get_cmdline_user_args();
+        info!("Args: {:?}", args);
+        let arg1 = String::from(args.get(0));
+        let netman = match arg1.as_str() {
+            "client" => NetmanVariant::connect("127.0.0.1:2300").unwrap(),
+            _ => NetmanVariant::start_server().unwrap(),
+        };
         Self {
             base,
             universe: Universe::new(),
-            netman: NetmanVariant::start_server().unwrap(),
+            netman,
         }
     }
     fn ready(&mut self) {
@@ -92,6 +103,9 @@ impl Node3DVirtual for GameClass {
             //node.set_name("wall".into());
             self.base.add_child(node);
         }
+    }
+    fn process(&mut self, _dt: f64) {
+        self.netman.process_events(&mut self.universe)
     }
 }
 

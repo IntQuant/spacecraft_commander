@@ -1,5 +1,4 @@
 use std::{
-    convert::Infallible,
     marker::PhantomData,
     result,
     sync::{
@@ -14,7 +13,7 @@ use aes_gcm::{
     Aes256Gcm, KeyInit, Nonce,
 };
 use rand_core::OsRng;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use socket2::{SockRef, TcpKeepalive};
 use thiserror::Error;
 use tokio::{
@@ -176,14 +175,16 @@ struct RemoteEndpointShared {
     running: AtomicBool,
     received_count: AtomicUsize,
     sent_count: AtomicUsize,
+    endpoint_id: EndpointId,
 }
 
 impl RemoteEndpointShared {
-    fn new() -> Arc<Self> {
+    fn new(peer_id: EndpointId) -> Arc<Self> {
         Arc::new(Self {
             running: AtomicBool::new(true),
             received_count: AtomicUsize::new(0),
             sent_count: AtomicUsize::new(0),
+            endpoint_id: peer_id,
         })
     }
 
@@ -222,6 +223,20 @@ impl RemoteEndpointShared {
     }
 }
 
+impl Drop for RemoteEndpointShared {
+    fn drop(&mut self) {
+        info!(
+            "Stats for endpoint {:?}: {} bytes received, {} bytes sent",
+            self.endpoint_id,
+            self.received_count.load(Ordering::Relaxed),
+            self.sent_count.load(Ordering::Relaxed),
+        )
+    }
+}
+
+#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct EndpointId(pub u32);
+
 pub struct RemoteEndpoint<R, S> {
     receiver: mpsc::Receiver<R>,
     sender: mpsc::Sender<S>,
@@ -233,11 +248,11 @@ where
     R: DeserializeOwned + Send + 'static,
     S: Serialize + Send + 'static,
 {
-    pub async fn new(stream: TcpStream) -> Result<Self> {
+    pub async fn new(stream: TcpStream, endpoint_id: EndpointId) -> Result<Self> {
         if let Err(err) = stream.set_nodelay(true) {
             info!("Could not enable tcp nodelay: {}", err);
         }
-        let shared = RemoteEndpointShared::new();
+        let shared = RemoteEndpointShared::new(endpoint_id);
         let (reader, writer) = wrap_and_split::<R, S>(stream).await?;
         let (sender, receiver) = mpsc::channel(16);
         let (sender_outbound, receiver_outbound) = mpsc::channel(16);
@@ -285,5 +300,9 @@ where
 
     pub fn has_space(&self) -> bool {
         self.sender.capacity() > 4
+    }
+
+    pub fn endpoint_id(&self) -> EndpointId {
+        self.shared.endpoint_id
     }
 }

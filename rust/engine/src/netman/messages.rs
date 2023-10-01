@@ -1,20 +1,20 @@
 use serde::{Deserialize, Serialize};
 
-use crate::universe::{Universe, UniverseEvent};
+use crate::universe::{OwnedUniverseEvent, Universe, UniverseEvent};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum QueuedEvent {
+    UniverseEvent(OwnedUniverseEvent),
+    StepUniverse,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SentByServer {
     SetUniverse(Universe),
+    Event(QueuedEvent),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum SentByClient {}
-
-#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
-struct PeerId(u64);
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Event {
-    source: PeerId,
-    event: UniverseEvent,
+pub enum SentByClient {
+    UniverseEvent(UniverseEvent),
 }
