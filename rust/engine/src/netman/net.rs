@@ -55,8 +55,8 @@ impl NetworkError {
     }
 }
 
-impl From<bincode::Error> for NetworkError {
-    fn from(_value: bincode::Error) -> Self {
+impl From<bitcode::Error> for NetworkError {
+    fn from(_value: bitcode::Error) -> Self {
         Self::MalformedData(MalformedReason::Serialization)
     }
 }
@@ -88,7 +88,17 @@ pub struct WrappedWriter<S> {
 
 impl<R: DeserializeOwned> WrappedReader<R> {
     pub async fn read(&mut self) -> Result<(R, usize)> {
-        let len = self.reader.read_u32().await? as usize;
+        let mut ret_read_len = 1;
+
+        let len = self.reader.read_u8().await?;
+        let len = if len == u8::MAX {
+            ret_read_len += 4;
+            self.reader.read_u32().await? as usize
+        } else {
+            len as usize
+        };
+        ret_read_len += len;
+
         debug!("Packet len: {len}");
         if len > MAX_PACKET_LEN {
             return Err(NetworkError::new(format!(
@@ -104,18 +114,25 @@ impl<R: DeserializeOwned> WrappedReader<R> {
             .cipher
             .decrypt(&nonce, &self.buffer[..len])
             .map_err(|_e| NetworkError::MalformedData(MalformedReason::Encryption))?;
-        Ok((bincode::deserialize(&decrypted)?, 4 + len))
+        Ok((bitcode::deserialize(&decrypted)?, ret_read_len))
     }
 }
 
 impl<S: Serialize> WrappedWriter<S> {
     pub async fn write(&mut self, msg: S) -> Result<usize> {
-        let serialized = bincode::serialize(&msg)?;
+        let mut ret_write_len = 1;
+        let serialized = bitcode::serialize(&msg)?;
 
         let nonce = self.nonce.next();
         let msg = self.cipher.encrypt(&nonce, serialized.as_ref()).unwrap();
         let len = msg.len();
-        self.writer.write_u32(len as u32).await?; // TODO use u8 for size where possible
+        if len < u8::MAX as _ {
+            self.writer.write_u8(len as u8).await?;
+        } else {
+            ret_write_len += 4;
+            self.writer.write_u8(u8::MAX).await?;
+            self.writer.write_u32(len as u32).await?;
+        }
         trace!("Sending {len} bytes");
         if len > MAX_PACKET_LEN {
             return Err(NetworkError::new(format!(
@@ -124,7 +141,7 @@ impl<S: Serialize> WrappedWriter<S> {
         }
         self.writer.write_all(&msg).await?;
         self.writer.flush().await?;
-        Ok(4 + msg.len())
+        Ok(ret_write_len + msg.len())
     }
 }
 
