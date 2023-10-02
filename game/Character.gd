@@ -7,6 +7,11 @@ const JUMP_VELOCITY = 4.5
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
+@export
+var player = 0
+@export
+var controlled = true
+
 func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -18,6 +23,9 @@ func _input(event):
 		$Camera3D.rotation.x = clamp($Camera3D.rotation.x + rotation_y, -PI/2, PI/2)
 
 func _physics_process(delta):
+	if not controlled:
+		return
+	
 	# Add the gravity.
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -38,3 +46,5 @@ func _physics_process(delta):
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
+	
+	$/root/GameClass.update_player_position(position, velocity)

@@ -1,4 +1,4 @@
-use num_traits::Zero;
+use num_traits::{NumCast, ToPrimitive, Zero};
 use paste::paste;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -71,4 +71,21 @@ impl<T: Add<Output = T> + Zero, const P: u8> Zero for Fixed<T, P> {
     }
 }
 
-pub type Vector3 = nalgebra::Vector3<Fixed<i64, 20>>;
+impl<T: NumCast, const P: u8> From<f32> for Fixed<T, P> {
+    fn from(value: f32) -> Self {
+        Fixed(
+            T::from(f32::round(
+                value * f32::powi(2.0, <i32 as From<u8>>::from(P)),
+            ))
+            .unwrap(),
+        )
+    }
+}
+
+impl<T: ToPrimitive, const P: u8> From<Fixed<T, P>> for f32 {
+    fn from(value: Fixed<T, P>) -> Self {
+        value.0.to_f32().unwrap_or(f32::NAN) * f32::powi(2.0, -<i32 as From<u8>>::from(P))
+    }
+}
+
+pub type Vec3 = nalgebra::Vector3<Fixed<i64, 20>>;

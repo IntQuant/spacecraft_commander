@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use tokio::{
@@ -13,7 +13,7 @@ use tracing::{info, warn};
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent},
+    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, TICK_TIME},
 };
 
 use self::{
@@ -69,8 +69,6 @@ impl Client {
         }
     }
 }
-
-const TICK_TIME: Duration = Duration::from_micros(16666);
 
 impl Server {
     fn process_events(&mut self, universe: &mut Universe) {
@@ -197,6 +195,27 @@ impl NetmanVariant {
         match self {
             NetmanVariant::Client(client) => client.process_events(universe),
             NetmanVariant::Server(server) => server.process_events(universe),
+        }
+    }
+
+    pub fn emit_event(&mut self, event: UniverseEvent) -> bool {
+        match self {
+            NetmanVariant::Client(client) => {
+                let has_space = client.endpoint.has_space();
+                if has_space {
+                    client.endpoint.send(SentByClient::UniverseEvent(event))
+                }
+                has_space
+            }
+            NetmanVariant::Server(server) => {
+                server
+                    .event_queue
+                    .push_back(QueuedEvent::UniverseEvent(OwnedUniverseEvent {
+                        player_id: PlayerID(0),
+                        event,
+                    }));
+                true
+            }
         }
     }
 

@@ -1,17 +1,21 @@
+use crate::util::FromGodot;
 use std::sync::{atomic::AtomicBool, OnceLock};
 
+use engine_num::Vec3;
 use godot::{
-    engine::{Engine, Os, RenderingServer},
+    engine::{CharacterBody3D, Engine, Os, RenderingServer},
     prelude::*,
 };
 use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
-use tracing::{info, Level};
+use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
-use universe::Universe;
+use universe::{PlayerID, Universe};
+use util::IntoGodot;
 
 mod netman;
 mod universe;
+mod util;
 
 struct MyExtension;
 
@@ -130,8 +134,34 @@ impl Node3DVirtual for GameClass {
 
 #[godot_api]
 impl GameClass {
+    fn netman(&self) -> &NetmanVariant {
+        self.netman.as_ref().unwrap()
+    }
+
+    fn netman_mut(&mut self) -> &mut NetmanVariant {
+        self.netman.as_mut().unwrap()
+    }
+
     #[func]
     fn frame_pre_draw(&mut self) {
+        let my_id = self.netman.as_ref().unwrap().my_id();
+        let players = self
+            .base
+            .get_tree()
+            .unwrap()
+            .get_nodes_in_group("players".into());
+        for player in players.iter_shared() {
+            let mut player = player.cast::<CharacterBody3D>();
+            let player_id = PlayerID(player.get("player".into()).to::<u32>());
+            if my_id != Some(player_id) {
+                if let Some(player_info) = self.universe.players.get(&player_id) {
+                    player.set_position(player_info.position.into_godot()); // TODO interpolate
+                } else {
+                    warn!("Player {:?} not found", player_id)
+                }
+                player.set("controlled".into(), false.to_variant());
+            }
+        }
         //godot_print!("pre_draw");
 
         // self.base
@@ -141,5 +171,27 @@ impl GameClass {
         //         y: 0.0,
         //         z: 0.0,
         //     })
+    }
+
+    #[func]
+    fn my_id(&self) -> u32 {
+        self.netman().my_id().unwrap_or(PlayerID(0)).0
+    }
+
+    // fn player_position(&self, player_id: u32) {
+    //     let player_id = PlayerID(player_id);
+    //     self.universe.players.get(&player_id).unwrap()
+    // }
+    #[func]
+    fn update_player_position(&mut self, pos: Vector3, vel: Vector3) {
+        let pos = Vec3::from_godot(pos);
+        let vel = Vec3::from_godot(vel);
+        self.netman
+            .as_mut()
+            .unwrap()
+            .emit_event(universe::UniverseEvent::PlayerMoved {
+                new_position: pos,
+                new_velocity: vel,
+            });
     }
 }

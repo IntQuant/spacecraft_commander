@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use aes_gcm::{
@@ -176,6 +176,7 @@ struct RemoteEndpointShared {
     received_count: AtomicUsize,
     sent_count: AtomicUsize,
     endpoint_id: EndpointId,
+    created_at: Instant,
 }
 
 impl RemoteEndpointShared {
@@ -185,6 +186,7 @@ impl RemoteEndpointShared {
             received_count: AtomicUsize::new(0),
             sent_count: AtomicUsize::new(0),
             endpoint_id: peer_id,
+            created_at: Instant::now(),
         })
     }
 
@@ -225,12 +227,19 @@ impl RemoteEndpointShared {
 
 impl Drop for RemoteEndpointShared {
     fn drop(&mut self) {
+        let elapsed = self.created_at.elapsed().as_secs();
+        let received = self.received_count.load(Ordering::Relaxed) as u64;
+        let sent = self.sent_count.load(Ordering::Relaxed) as u64;
         info!(
             "Stats for endpoint {:?}: {} bytes received, {} bytes sent",
-            self.endpoint_id,
-            self.received_count.load(Ordering::Relaxed),
-            self.sent_count.load(Ordering::Relaxed),
-        )
+            self.endpoint_id, received, sent,
+        );
+        info!(
+            "Existed for {} seconds, {} B/s rx, {} B/s tx",
+            elapsed,
+            received / elapsed,
+            sent / elapsed
+        );
     }
 }
 
@@ -262,7 +271,7 @@ where
                 if let Err(err) = shared.reader_move_to_channel(reader, sender).await {
                     warn!("Connection error: {}", err);
                 };
-                info!("Connection lost");
+                info!("Connection lost [inbound]");
                 shared.running.store(false, Ordering::Release)
             }
         });
@@ -275,7 +284,7 @@ where
                 {
                     warn!("Connection error: {}", err);
                 }
-                info!("Connection lost");
+                info!("Connection lost [outbound]");
                 shared.running.store(false, Ordering::Release)
             }
         });
