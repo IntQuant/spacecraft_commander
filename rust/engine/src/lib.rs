@@ -183,15 +183,11 @@ impl GameClass {
     //     self.universe.players.get(&player_id).unwrap()
     // }
     #[func]
-    fn update_player_position(&mut self, pos: Vector3, vel: Vector3) {
+    fn update_player_position(&mut self, pos: Vector3) {
         let pos = Vec3::from_godot(pos);
-        let vel = Vec3::from_godot(vel);
         self.netman
             .as_mut()
             .unwrap()
-            .emit_event(universe::UniverseEvent::PlayerMoved {
-                new_position: pos,
-                new_velocity: vel,
-            });
+            .emit_event(universe::UniverseEvent::PlayerMoved { new_position: pos });
     }
 }

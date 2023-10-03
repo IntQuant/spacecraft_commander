@@ -19,7 +19,6 @@ pub struct Vessel {}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
     pub position: Vec3,
-    pub velocity: Vec3,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -47,16 +46,11 @@ impl Universe {
                 info!("Creating player for {player_id:?}");
                 self.players.entry(player_id).or_insert(Player {
                     position: Vec3::default(),
-                    velocity: Vec3::default(),
                 });
             }
-            UniverseEvent::PlayerMoved {
-                new_position,
-                new_velocity,
-            } => {
+            UniverseEvent::PlayerMoved { new_position } => {
                 if let Some(player) = self.players.get_mut(&player_id) {
                     player.position = new_position;
-                    player.velocity = new_velocity;
                 }
             }
         }
@@ -78,10 +72,7 @@ impl Universe {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum UniverseEvent {
     PlayerConnected,
-    PlayerMoved {
-        new_position: Vec3,
-        new_velocity: Vec3,
-    },
+    PlayerMoved { new_position: Vec3 },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

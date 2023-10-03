@@ -88,4 +88,4 @@ impl<T: ToPrimitive, const P: u8> From<Fixed<T, P>> for f32 {
     }
 }
 
-pub type Vec3 = nalgebra::Vector3<Fixed<i64, 20>>;
+pub type Vec3 = nalgebra::Vector3<Fixed<i32, 14>>;

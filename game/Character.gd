@@ -47,4 +47,4 @@ func _physics_process(delta):
 
 	move_and_slide()
 	
-	$/root/GameClass.update_player_position(position, velocity)
+	$/root/GameClass.update_player_position(position)
