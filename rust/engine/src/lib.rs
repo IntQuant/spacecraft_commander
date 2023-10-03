@@ -220,7 +220,6 @@ impl GameClass {
                 } else {
                     warn!("Player {:?} not found", player_id)
                 }
-                player.set("controlled".into(), false.to_variant());
             }
         }
         //godot_print!("pre_draw");
