@@ -10,7 +10,10 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 @export
 var player = 0
 @export
-var controlled = true
+var controlled = true:
+	set(value):
+		$Camera3D.current = value
+		controlled = value
 
 func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -46,5 +49,8 @@ func _physics_process(delta):
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
+
+	if position.y < -100:
+		position.y = 100
 	
 	$/root/GameClass.update_player_position(position)

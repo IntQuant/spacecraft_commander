@@ -1,17 +1,20 @@
 use crate::util::FromGodot;
-use std::sync::{atomic::AtomicBool, OnceLock};
+use std::{
+    collections::HashSet,
+    sync::{atomic::AtomicBool, OnceLock},
+};
 
 use engine_num::Vec3;
 use godot::{
     engine::{CharacterBody3D, Engine, Os, RenderingServer},
-    prelude::*,
+    prelude::{GodotClass, Inherits, *},
 };
 use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use universe::{PlayerID, Universe};
-use util::IntoGodot;
+use util::{ArrayIter, IntoGodot};
 
 mod netman;
 mod universe;
@@ -130,9 +133,11 @@ impl Node3DVirtual for GameClass {
             .unwrap()
             .process_events(&mut self.universe)
     }
+    fn physics_process(&mut self, _dt: f64) {
+        self.update_players_on_vessel();
+    }
 }
 
-#[godot_api]
 impl GameClass {
     fn netman(&self) -> &NetmanVariant {
         self.netman.as_ref().unwrap()
@@ -142,6 +147,62 @@ impl GameClass {
         self.netman.as_mut().unwrap()
     }
 
+    fn iter_group<Derived>(
+        &mut self,
+        group_name: impl Into<StringName>,
+    ) -> impl Iterator<Item = Gd<Derived>> + '_
+    where
+        Derived: GodotClass + Inherits<godot::prelude::Node>,
+    {
+        let group = self
+            .base
+            .get_tree()
+            .unwrap()
+            .get_nodes_in_group(group_name.into());
+        ArrayIter::new(group).map(|x| x.cast::<Derived>())
+    }
+
+    fn update_players_on_vessel(&mut self) {
+        let Some(my_id) = self.netman().my_id() else {
+            return;
+        };
+        let Some(my_player) = self.universe.players.get(&my_id) else {
+            return;
+        };
+        let current_vessel = my_player.vessel;
+
+        let mut on_current_vessel: HashSet<_> = self
+            .universe
+            .players
+            .iter()
+            .filter(|(_id, player)| player.vessel == current_vessel)
+            .map(|(id, _player)| *id)
+            .collect();
+
+        for mut player_character in self.iter_group::<CharacterBody3D>("players") {
+            let character_player_id = PlayerID(player_character.get("player".into()).to::<u32>());
+            if on_current_vessel.contains(&character_player_id) {
+                on_current_vessel.remove(&character_player_id);
+            } else {
+                info!("Removing {character_player_id:?} from ui");
+                player_character.queue_free();
+            }
+        }
+        let not_yet_spawned = on_current_vessel;
+
+        for player_id in not_yet_spawned {
+            info!("Adding {player_id:?} to ui");
+            let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
+            player_node.set("player".into(), player_id.0.to_variant());
+            player_node.set("controlled".into(), (my_id == player_id).to_variant());
+            player_node.add_to_group("players".into());
+            self.base.add_child(player_node);
+        }
+    }
+}
+
+#[godot_api]
+impl GameClass {
     #[func]
     fn frame_pre_draw(&mut self) {
         let my_id = self.netman.as_ref().unwrap().my_id();
@@ -178,10 +239,6 @@ impl GameClass {
         self.netman().my_id().unwrap_or(PlayerID(0)).0
     }
 
-    // fn player_position(&self, player_id: u32) {
-    //     let player_id = PlayerID(player_id);
-    //     self.universe.players.get(&player_id).unwrap()
-    // }
     #[func]
     fn update_player_position(&mut self, pos: Vector3) {
         let pos = Vec3::from_godot(pos);

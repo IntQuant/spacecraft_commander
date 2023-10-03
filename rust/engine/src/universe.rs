@@ -19,6 +19,7 @@ pub struct Vessel {}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
     pub position: Vec3,
+    pub vessel: VesselID,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -46,6 +47,7 @@ impl Universe {
                 info!("Creating player for {player_id:?}");
                 self.players.entry(player_id).or_insert(Player {
                     position: Vec3::default(),
+                    vessel: VesselID(0),
                 });
             }
             UniverseEvent::PlayerMoved { new_position } => {
@@ -57,7 +59,7 @@ impl Universe {
     }
 
     pub fn step(&mut self) {
-        self.unsynced_last_step = Some(Instant::now())
+        self.unsynced_last_step = Some(Instant::now());
         // TODO
     }
 
