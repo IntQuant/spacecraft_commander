@@ -4,7 +4,7 @@ use std::sync::{atomic::AtomicBool, OnceLock};
 use engine_num::Vec3;
 use godot::{
     engine::{CharacterBody3D, Engine, Os, RenderingServer},
-    prelude::{GodotClass, Inherits, *},
+    prelude::*,
 };
 use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
@@ -12,7 +12,7 @@ use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{Ui, UiInCtx};
 use universe::{PlayerID, Universe};
-use util::{ArrayIter, IntoGodot};
+use util::{IntoGodot, OptionNetmanExt};
 
 mod netman;
 mod ui;
@@ -129,44 +129,16 @@ impl Node3DVirtual for GameClass {
         }
     }
     fn process(&mut self, _dt: f64) {
-        self.netman
-            .as_mut()
-            .unwrap()
-            .process_events(&mut self.universe)
+        self.netman.get_mut().process_events(&mut self.universe)
     }
     fn physics_process(&mut self, _dt: f64) {
         let mut ctx = UiInCtx {
-            netman: self.netman.as_mut().unwrap(),
+            netman: self.netman.get(),
             universe: &self.universe,
             scene: &mut self.base.get_tree().unwrap(),
             base: &mut self.base,
         };
         self.ui.update(&mut ctx);
-    }
-}
-
-impl GameClass {
-    fn netman(&self) -> &NetmanVariant {
-        self.netman.as_ref().unwrap()
-    }
-
-    fn netman_mut(&mut self) -> &mut NetmanVariant {
-        self.netman.as_mut().unwrap()
-    }
-
-    fn iter_group<Derived>(
-        &mut self,
-        group_name: impl Into<StringName>,
-    ) -> impl Iterator<Item = Gd<Derived>> + '_
-    where
-        Derived: GodotClass + Inherits<godot::prelude::Node>,
-    {
-        let group = self
-            .base
-            .get_tree()
-            .unwrap()
-            .get_nodes_in_group(group_name.into());
-        ArrayIter::new(group).map(|x| x.cast::<Derived>())
     }
 }
 
@@ -204,15 +176,14 @@ impl GameClass {
 
     #[func]
     fn my_id(&self) -> u32 {
-        self.netman().my_id().unwrap_or(PlayerID(0)).0
+        self.netman.get().my_id().unwrap_or(PlayerID(0)).0
     }
 
     #[func]
     fn update_player_position(&mut self, pos: Vector3) {
         let pos = Vec3::from_godot(pos);
         self.netman
-            .as_mut()
-            .unwrap()
+            .get_mut()
             .emit_event(universe::UniverseEvent::PlayerMoved { new_position: pos });
     }
 }

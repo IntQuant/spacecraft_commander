@@ -1,10 +1,12 @@
-use std::{iter::Map, ops::FnMut};
+use std::iter::Map;
 
 use engine_num::Vec3;
 use godot::prelude::{
     meta::VariantMetadata, Array, FromVariant, Gd, GodotClass, Inherits, Node, SceneTree,
     StringName, Vector3,
 };
+
+use crate::netman::NetmanVariant;
 
 pub trait IntoGodot {
     type Output;
@@ -54,7 +56,7 @@ impl<T: VariantMetadata + FromVariant> Iterator for ArrayIter<T> {
     }
 }
 
-pub(crate) trait SceneTreeExt {
+pub trait SceneTreeExt {
     type RetIterator<Derived: GodotClass>: Iterator<Item = Gd<Derived>>;
     fn iter_group<Derived>(
         &mut self,
@@ -75,5 +77,20 @@ impl SceneTreeExt for SceneTree {
     {
         let group = self.get_nodes_in_group(group_name.into());
         ArrayIter::new(group).map(Gd::<Node>::cast::<Derived>)
+    }
+}
+
+pub trait OptionNetmanExt {
+    fn get(&self) -> &NetmanVariant;
+    fn get_mut(&mut self) -> &mut NetmanVariant;
+}
+
+impl OptionNetmanExt for Option<NetmanVariant> {
+    fn get(&self) -> &NetmanVariant {
+        self.as_ref().unwrap()
+    }
+
+    fn get_mut(&mut self) -> &mut NetmanVariant {
+        self.as_mut().unwrap()
     }
 }
