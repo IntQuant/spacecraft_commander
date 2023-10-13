@@ -55,32 +55,25 @@ impl<T: VariantMetadata + FromVariant> Iterator for ArrayIter<T> {
 }
 
 pub(crate) trait SceneTreeExt {
-    type RetIterator<Derived: GodotClass, F: FnMut(Gd<Node>) -> Gd<Derived>>: Iterator<
-        Item = Gd<Derived>,
-    >;
+    type RetIterator<Derived: GodotClass>: Iterator<Item = Gd<Derived>>;
     fn iter_group<Derived>(
         &mut self,
         group_name: impl Into<StringName>,
-    ) -> Self::RetIterator<Derived, fn(Gd<Node>) -> Gd<Derived>>
+    ) -> Self::RetIterator<Derived>
     where
         Derived: GodotClass + Inherits<Node>;
 }
 
-fn cast<Derived: GodotClass + Inherits<Node>>(x: Gd<Node>) -> Gd<Derived> {
-    x.cast::<Derived>()
-}
-
 impl SceneTreeExt for SceneTree {
-    type RetIterator<Derived: GodotClass, F: FnMut(Gd<Node>) -> Gd<Derived>> =
-        Map<ArrayIter<Gd<Node>>, F>;
+    type RetIterator<Derived: GodotClass> = Map<ArrayIter<Gd<Node>>, fn(Gd<Node>) -> Gd<Derived>>;
     fn iter_group<Derived>(
         &mut self,
         group_name: impl Into<StringName>,
-    ) -> Self::RetIterator<Derived, fn(Gd<Node>) -> Gd<Derived>>
+    ) -> Self::RetIterator<Derived>
     where
         Derived: GodotClass + Inherits<Node>,
     {
         let group = self.get_nodes_in_group(group_name.into());
-        ArrayIter::new(group).map(cast)
+        ArrayIter::new(group).map(Gd::<Node>::cast::<Derived>)
     }
 }
