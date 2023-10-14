@@ -12,6 +12,9 @@ use crate::{
     util::{IntoGodot, SceneTreeExt},
 };
 
+/// Ui context that lives for a duration of a single frame or update.
+///
+/// Has references to everything that should be available from ui.
 pub struct UiInCtx<'a> {
     pub netman: &'a NetmanVariant,
     pub universe: &'a Universe,
@@ -20,6 +23,7 @@ pub struct UiInCtx<'a> {
     pub state: &'a mut UiState,
 }
 
+/// Persistent Ui state.
 pub struct UiState {}
 
 impl UiState {
@@ -29,10 +33,14 @@ impl UiState {
 }
 
 impl UiInCtx<'_> {
+    /// Called (ideally) 60 times per frame.
+    ///
+    /// Not synced to universe updates.
     pub fn on_update(&mut self) {
         self.update_players_on_vessel();
     }
 
+    /// Called before frame is rendered.
     pub fn on_render(&mut self) {
         let my_id = self.netman.my_id();
         let players = self.scene.get_nodes_in_group("players".into());

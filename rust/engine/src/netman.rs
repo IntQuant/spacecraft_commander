@@ -24,11 +24,15 @@ use self::{
 mod messages;
 mod net;
 
+/// Netmanager itself.
+///
+/// Ensures that each client's universe instance is being fed the same set of events.
 pub enum NetmanVariant {
     Client(Client),
     Server(Server),
 }
 
+/// Implementation of client-side netmanager.
 pub struct Client {
     endpoint: CRemoteEndpoint,
     my_id: Option<PlayerID>,
@@ -37,6 +41,7 @@ pub struct Client {
 type SRemoteEndpoint = RemoteEndpoint<SentByClient, SentByServer>;
 type CRemoteEndpoint = RemoteEndpoint<SentByServer, SentByClient>;
 
+/// Implementation of server-side netmanager.
 pub struct Server {
     new_connections: mpsc::Receiver<SRemoteEndpoint>,
     endpoints: Vec<SRemoteEndpoint>,

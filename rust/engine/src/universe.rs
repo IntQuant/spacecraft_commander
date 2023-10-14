@@ -22,6 +22,9 @@ pub struct Player {
     pub vessel: VesselID,
 }
 
+/// The root of simulation. Should be the same on every client.
+///
+/// Deterministic - same sequence of events and updates(steps) should result in same state.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Universe {
     pub vessels: IndexMap<VesselID, Vessel>,
