@@ -12,3 +12,6 @@ run-client: build
 
 editor: build
     cd game && godot4 -e
+
+doc:
+    cd rust && cargo doc --no-deps --document-private-items --open
