@@ -17,27 +17,30 @@ pub struct UiInCtx<'a> {
     pub universe: &'a Universe,
     pub scene: &'a mut SceneTree,
     pub base: &'a mut Node3D,
+    pub state: &'a mut UiState,
 }
 
-pub struct Ui {}
+pub struct UiState {}
 
-impl Ui {
+impl UiState {
     pub fn new() -> Self {
         Self {}
     }
+}
 
-    pub fn on_update(&mut self, ctx: &mut UiInCtx) {
-        self.update_players_on_vessel(ctx);
+impl UiInCtx<'_> {
+    pub fn on_update(&mut self) {
+        self.update_players_on_vessel();
     }
 
-    pub fn on_render(&mut self, ctx: &mut UiInCtx) {
-        let my_id = ctx.netman.my_id();
-        let players = ctx.scene.get_nodes_in_group("players".into());
+    pub fn on_render(&mut self) {
+        let my_id = self.netman.my_id();
+        let players = self.scene.get_nodes_in_group("players".into());
         for player in players.iter_shared() {
             let mut player = player.cast::<CharacterBody3D>();
             let player_id = PlayerID(player.get("player".into()).to::<u32>());
             if my_id != Some(player_id) {
-                if let Some(player_info) = ctx.universe.players.get(&player_id) {
+                if let Some(player_info) = self.universe.players.get(&player_id) {
                     player.set_position(player_info.position.into_godot()); // TODO interpolate
                 } else {
                     warn!("Player {:?} not found", player_id)
@@ -46,16 +49,16 @@ impl Ui {
         }
     }
 
-    fn update_players_on_vessel(&mut self, ctx: &mut UiInCtx) {
-        let Some(my_id) = ctx.netman.my_id() else {
+    fn update_players_on_vessel(&mut self) {
+        let Some(my_id) = self.netman.my_id() else {
             return;
         };
-        let Some(my_player) = ctx.universe.players.get(&my_id) else {
+        let Some(my_player) = self.universe.players.get(&my_id) else {
             return;
         };
         let current_vessel = my_player.vessel;
 
-        let mut on_current_vessel: HashSet<_> = ctx
+        let mut on_current_vessel: HashSet<_> = self
             .universe
             .players
             .iter()
@@ -63,7 +66,7 @@ impl Ui {
             .map(|(id, _player)| *id)
             .collect();
 
-        for mut player_character in ctx.scene.iter_group::<CharacterBody3D>("players") {
+        for mut player_character in self.scene.iter_group::<CharacterBody3D>("players") {
             let character_player_id = PlayerID(player_character.get("player".into()).to::<u32>());
             if on_current_vessel.contains(&character_player_id) {
                 on_current_vessel.remove(&character_player_id);
@@ -80,7 +83,7 @@ impl Ui {
             player_node.set("player".into(), player_id.0.to_variant());
             player_node.set("controlled".into(), (my_id == player_id).to_variant());
             player_node.add_to_group("players".into());
-            ctx.base.add_child(player_node);
+            self.base.add_child(player_node);
         }
     }
 }

@@ -10,7 +10,7 @@ use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use ui::{Ui, UiInCtx};
+use ui::{UiInCtx, UiState};
 use universe::{PlayerID, Universe};
 use util::OptionNetmanExt;
 
@@ -71,7 +71,7 @@ fn get_runtime() -> &'static Runtime {
 struct GameClass {
     universe: Universe,
     netman: Option<NetmanVariant>,
-    ui: Ui,
+    ui: UiState,
     #[base]
     base: Base<Node3D>,
 }
@@ -100,7 +100,7 @@ impl Node3DVirtual for GameClass {
         Self {
             universe: Universe::new(),
             netman,
-            ui: Ui::new(),
+            ui: UiState::new(),
             base,
         }
     }
@@ -131,14 +131,22 @@ impl Node3DVirtual for GameClass {
     fn process(&mut self, _dt: f64) {
         self.netman.get_mut().process_events(&mut self.universe)
     }
+
     fn physics_process(&mut self, _dt: f64) {
+        self.with_ui_ctx(|ctx| ctx.on_update());
+    }
+}
+
+impl GameClass {
+    fn with_ui_ctx<T>(&mut self, f: impl FnOnce(&mut UiInCtx) -> T) -> T {
         let mut ctx = UiInCtx {
             netman: self.netman.get(),
             universe: &self.universe,
             scene: &mut self.base.get_tree().unwrap(),
             base: &mut self.base,
+            state: &mut self.ui,
         };
-        self.ui.on_update(&mut ctx);
+        f(&mut ctx)
     }
 }
 
@@ -146,13 +154,7 @@ impl Node3DVirtual for GameClass {
 impl GameClass {
     #[func]
     fn frame_pre_draw(&mut self) {
-        let mut ctx = UiInCtx {
-            netman: self.netman.get(),
-            universe: &self.universe,
-            scene: &mut self.base.get_tree().unwrap(),
-            base: &mut self.base,
-        };
-        self.ui.on_render(&mut ctx);
+        self.with_ui_ctx(|ctx| ctx.on_render());
     }
 
     #[func]
