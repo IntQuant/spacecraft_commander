@@ -3,16 +3,16 @@ use std::sync::{atomic::AtomicBool, OnceLock};
 
 use engine_num::Vec3;
 use godot::{
-    engine::{CharacterBody3D, Engine, Os, RenderingServer},
+    engine::{Engine, Os, RenderingServer},
     prelude::*,
 };
 use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
-use tracing::{info, warn, Level};
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{Ui, UiInCtx};
 use universe::{PlayerID, Universe};
-use util::{IntoGodot, OptionNetmanExt};
+use util::OptionNetmanExt;
 
 mod netman;
 mod ui;
@@ -138,7 +138,7 @@ impl Node3DVirtual for GameClass {
             scene: &mut self.base.get_tree().unwrap(),
             base: &mut self.base,
         };
-        self.ui.update(&mut ctx);
+        self.ui.on_update(&mut ctx);
     }
 }
 
@@ -146,32 +146,13 @@ impl Node3DVirtual for GameClass {
 impl GameClass {
     #[func]
     fn frame_pre_draw(&mut self) {
-        let my_id = self.netman.as_ref().unwrap().my_id();
-        let players = self
-            .base
-            .get_tree()
-            .unwrap()
-            .get_nodes_in_group("players".into());
-        for player in players.iter_shared() {
-            let mut player = player.cast::<CharacterBody3D>();
-            let player_id = PlayerID(player.get("player".into()).to::<u32>());
-            if my_id != Some(player_id) {
-                if let Some(player_info) = self.universe.players.get(&player_id) {
-                    player.set_position(player_info.position.into_godot()); // TODO interpolate
-                } else {
-                    warn!("Player {:?} not found", player_id)
-                }
-            }
-        }
-        //godot_print!("pre_draw");
-
-        // self.base
-        //     .get_node_as::<Node3D>("wall")
-        //     .set_position(Vector3 {
-        //         x: self.started.elapsed().as_secs_f32() % 10.0,
-        //         y: 0.0,
-        //         z: 0.0,
-        //     })
+        let mut ctx = UiInCtx {
+            netman: self.netman.get(),
+            universe: &self.universe,
+            scene: &mut self.base.get_tree().unwrap(),
+            base: &mut self.base,
+        };
+        self.ui.on_render(&mut ctx);
     }
 
     #[func]

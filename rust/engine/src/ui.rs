@@ -4,12 +4,12 @@ use godot::{
     engine::CharacterBody3D,
     prelude::{load, Node3D, PackedScene, SceneTree, ToVariant},
 };
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     netman::NetmanVariant,
     universe::{PlayerID, Universe},
-    util::SceneTreeExt,
+    util::{IntoGodot, SceneTreeExt},
 };
 
 pub struct UiInCtx<'a> {
@@ -26,8 +26,24 @@ impl Ui {
         Self {}
     }
 
-    pub fn update(&mut self, ctx: &mut UiInCtx) {
+    pub fn on_update(&mut self, ctx: &mut UiInCtx) {
         self.update_players_on_vessel(ctx);
+    }
+
+    pub fn on_render(&mut self, ctx: &mut UiInCtx) {
+        let my_id = ctx.netman.my_id();
+        let players = ctx.scene.get_nodes_in_group("players".into());
+        for player in players.iter_shared() {
+            let mut player = player.cast::<CharacterBody3D>();
+            let player_id = PlayerID(player.get("player".into()).to::<u32>());
+            if my_id != Some(player_id) {
+                if let Some(player_info) = ctx.universe.players.get(&player_id) {
+                    player.set_position(player_info.position.into_godot()); // TODO interpolate
+                } else {
+                    warn!("Player {:?} not found", player_id)
+                }
+            }
+        }
     }
 
     fn update_players_on_vessel(&mut self, ctx: &mut UiInCtx) {
