@@ -60,6 +60,7 @@ pub struct Server {
     listener_task: AbortHandle,
     player_map: HashMap<EndpointId, PlayerID>,
     last_tick: Instant,
+    last_late: Instant,
 }
 
 impl Client {
@@ -110,7 +111,11 @@ impl Client {
             self.latency_fix -= 1;
             self.last_step -= Duration::from_millis(1);
             info!("Decreasing latency_fix: {}", self.latency_fix);
-            self.last_fix += Duration::from_secs(1);
+            if self.latency_fix > 1000 {
+                self.last_fix += Duration::from_millis(25);
+            } else {
+                self.last_fix += Duration::from_millis(100);
+            }
         }
     }
 }
@@ -159,6 +164,16 @@ impl Server {
         while !self.event_queue.is_empty() {
             let has_space = self.endpoints.iter().all(|x| x.has_space());
             if !has_space {
+                if self.last_late.elapsed() > Duration::from_secs(5) {
+                    self.last_late = Instant::now();
+                    let late_ids = self
+                        .endpoints
+                        .iter()
+                        .filter(|x| x.has_space())
+                        .map(|x| x.endpoint_id())
+                        .collect::<Vec<_>>();
+                    warn!("Currently waiting on: {:?}", late_ids);
+                }
                 break;
             }
             let msg = self.event_queue.pop_front().unwrap();
@@ -220,6 +235,7 @@ impl NetmanVariant {
             event_queue,
             player_map: HashMap::new(),
             last_tick: Instant::now(),
+            last_late: Instant::now(),
         }))
     }
 
