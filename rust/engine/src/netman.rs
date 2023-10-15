@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use tokio::{
@@ -87,18 +87,19 @@ impl Client {
                 }
             }
         }
-        if self.pending_steps < 10 && self.last_step.elapsed() < LOW_TICK_TIME {
-            return;
-        }
-        while !self.event_queue.is_empty() {
+        while !self.event_queue.is_empty() && self.last_step.elapsed() > TICK_TIME {
             match self.event_queue.pop_front().unwrap() {
                 PartialEvent::Step => {
+                    info!("Elapsed: {}", self.last_step.elapsed().as_millis());
                     self.pending_steps -= 1;
                     self.last_step += TICK_TIME;
                     universe.step();
                 }
                 PartialEvent::UniverseEvent(event) => universe.process_event(event),
             }
+        }
+        if self.pending_steps <= 10 {
+            self.last_step += Duration::from_millis(1)
         }
     }
 }
