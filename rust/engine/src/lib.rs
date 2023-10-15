@@ -89,7 +89,7 @@ impl Node3DVirtual for GameClass {
                 "".to_string()
             };
             let netman = match arg1.as_str() {
-                "client" => NetmanVariant::connect("127.0.0.1:2300").unwrap(),
+                "client" => NetmanVariant::connect("10.8.0.2:2300").unwrap(),
                 _ => NetmanVariant::start_server().unwrap(),
             };
             Some(netman)
@@ -128,11 +128,10 @@ impl Node3DVirtual for GameClass {
             }
         }
     }
-    fn process(&mut self, _dt: f64) {
-        self.netman.get_mut().process_events(&mut self.universe)
-    }
+    fn process(&mut self, _dt: f64) {}
 
     fn physics_process(&mut self, _dt: f64) {
+        self.netman.get_mut().process_events(&mut self.universe);
         self.with_ui_ctx(|ctx| ctx.on_update());
     }
 }
