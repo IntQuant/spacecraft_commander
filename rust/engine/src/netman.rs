@@ -43,6 +43,8 @@ pub struct Client {
     event_queue: VecDeque<PartialEvent>,
     pending_steps: u32,
     last_step: Instant,
+    latency_fix: i32,
+    last_fix: Instant,
 }
 
 enum PartialEvent {
@@ -65,6 +67,7 @@ impl Client {
         while let Some(msg) = self.endpoint.try_recv() {
             match msg {
                 SentByServer::SetUniverse(new_universe) => {
+                    self.last_step = Instant::now();
                     info!("Setting new universe...");
                     *universe = new_universe;
                     info!("Clearing queues...");
@@ -87,7 +90,7 @@ impl Client {
                 }
             }
         }
-        while !self.event_queue.is_empty() && self.last_step.elapsed() > TICK_TIME {
+        while !self.event_queue.is_empty() && self.last_step.elapsed() > Duration::ZERO {
             match self.event_queue.pop_front().unwrap() {
                 PartialEvent::Step => {
                     self.pending_steps -= 1;
@@ -97,8 +100,17 @@ impl Client {
                 PartialEvent::UniverseEvent(event) => universe.process_event(event),
             }
         }
-        if self.pending_steps <= 10 {
-            self.last_step += Duration::from_millis(1)
+        if self.last_step.elapsed() > Duration::ZERO {
+            self.last_step += Duration::from_millis(1);
+            self.latency_fix += 1;
+            self.last_fix = Instant::now();
+            info!("Increasing latency_fix: {}", self.latency_fix);
+        }
+        if self.last_fix.elapsed() > Duration::from_secs(10) {
+            self.latency_fix -= 1;
+            self.last_step -= Duration::from_millis(1);
+            info!("Decreasing latency_fix: {}", self.latency_fix);
+            self.last_fix += Duration::from_secs(1);
         }
     }
 }
@@ -224,6 +236,8 @@ impl NetmanVariant {
             event_queue: Default::default(),
             pending_steps: 0,
             last_step: Instant::now(),
+            latency_fix: 0,
+            last_fix: Instant::now(),
         }))
     }
 
