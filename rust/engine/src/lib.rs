@@ -89,7 +89,7 @@ impl Node3DVirtual for GameClass {
                 "".to_string()
             };
             let netman = match arg1.as_str() {
-                "client" => NetmanVariant::connect("10.8.0.206:2300").unwrap(),
+                "client" => NetmanVariant::connect("10.8.0.2:2300").unwrap(),
                 _ => NetmanVariant::start_server().unwrap(),
             };
             Some(netman)

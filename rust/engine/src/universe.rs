@@ -1,12 +1,11 @@
 use std::time::{Duration, Instant};
 
-use engine_num::Vec3;
+use engine_num::{Fixed, Vec3};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
-pub const LOW_TICK_TIME: Duration = Duration::from_micros(15000);
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct VesselID(u32);
@@ -50,7 +49,7 @@ impl Universe {
             UniverseEvent::PlayerConnected => {
                 info!("Creating player for {player_id:?}");
                 self.players.entry(player_id).or_insert(Player {
-                    position: Vec3::default(),
+                    position: Vec3::new(Fixed::new_int(0), Fixed::new_int(10), Fixed::new_int(0)),
                     vessel: VesselID(0),
                 });
             }

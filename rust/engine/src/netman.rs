@@ -13,7 +13,7 @@ use tracing::{info, warn};
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, LOW_TICK_TIME, TICK_TIME},
+    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, TICK_TIME},
 };
 
 use self::{
@@ -90,7 +90,6 @@ impl Client {
         while !self.event_queue.is_empty() && self.last_step.elapsed() > TICK_TIME {
             match self.event_queue.pop_front().unwrap() {
                 PartialEvent::Step => {
-                    info!("Elapsed: {}", self.last_step.elapsed().as_millis());
                     self.pending_steps -= 1;
                     self.last_step += TICK_TIME;
                     universe.step();

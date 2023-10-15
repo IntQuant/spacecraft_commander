@@ -47,11 +47,13 @@ impl UiInCtx<'_> {
         for player in players.iter_shared() {
             let mut player = player.cast::<CharacterBody3D>();
             let player_id = PlayerID(player.get("player".into()).to::<u32>());
-            if my_id != Some(player_id) {
-                if let Some(player_info) = self.universe.players.get(&player_id) {
-                    player.set_position(player_info.position.into_godot()); // TODO interpolate
-                } else {
-                    warn!("Player {:?} not found", player_id)
+            if let Some(my_id) = my_id {
+                if my_id != player_id {
+                    if let Some(player_info) = self.universe.players.get(&player_id) {
+                        player.set_position(player_info.position.into_godot()); // TODO interpolate
+                    } else {
+                        warn!("Player {:?} not found", player_id)
+                    }
                 }
             }
         }
@@ -91,6 +93,15 @@ impl UiInCtx<'_> {
             player_node.set("player".into(), player_id.0.to_variant());
             player_node.set("controlled".into(), (my_id == player_id).to_variant());
             player_node.add_to_group("players".into());
+            if let Some(player_info) = self.universe.players.get(&player_id) {
+                let position = player_info.position.into_godot();
+                player_node
+                    .clone()
+                    .cast::<CharacterBody3D>()
+                    .set_position(position)
+            } else {
+                warn!("Player {:?} not found", player_id)
+            }
             self.base.add_child(player_node);
         }
     }
