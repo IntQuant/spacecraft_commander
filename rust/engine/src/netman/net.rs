@@ -280,8 +280,8 @@ where
         }
         let shared = RemoteEndpointShared::new(endpoint_id);
         let (reader, writer) = wrap_and_split::<R, S>(stream).await?;
-        let (sender, receiver) = mpsc::channel(16);
-        let (sender_outbound, receiver_outbound) = mpsc::channel(16);
+        let (sender, receiver) = mpsc::channel(128);
+        let (sender_outbound, receiver_outbound) = mpsc::channel(128);
         tokio::spawn({
             let shared = shared.clone();
             async move {

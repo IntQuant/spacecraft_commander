@@ -13,7 +13,7 @@ use tracing::{info, warn};
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, TICK_TIME},
+    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, LOW_TICK_TIME, TICK_TIME},
 };
 
 use self::{
@@ -32,14 +32,23 @@ pub enum NetmanVariant {
     Server(Server),
 }
 
+type SRemoteEndpoint = RemoteEndpoint<SentByClient, SentByServer>;
+type CRemoteEndpoint = RemoteEndpoint<SentByServer, SentByClient>;
+
 /// Implementation of client-side netmanager.
 pub struct Client {
     endpoint: CRemoteEndpoint,
     my_id: Option<PlayerID>,
+
+    event_queue: VecDeque<PartialEvent>,
+    pending_steps: u32,
+    last_step: Instant,
 }
 
-type SRemoteEndpoint = RemoteEndpoint<SentByClient, SentByServer>;
-type CRemoteEndpoint = RemoteEndpoint<SentByServer, SentByClient>;
+enum PartialEvent {
+    Step,
+    UniverseEvent(OwnedUniverseEvent),
+}
 
 /// Implementation of server-side netmanager.
 pub struct Server {
@@ -58,18 +67,37 @@ impl Client {
                 SentByServer::SetUniverse(new_universe) => {
                     info!("Setting new universe...");
                     *universe = new_universe;
+                    info!("Clearing queues...");
+                    self.event_queue.clear();
+                    self.pending_steps = 0;
                     info!("Done!")
                 }
-                SentByServer::Event(QueuedEvent::StepUniverse) => universe.step(),
-                SentByServer::Event(QueuedEvent::UniverseEvent(event)) => {
-                    universe.process_event(event)
+                SentByServer::Event(QueuedEvent::StepUniverse) => {
+                    self.event_queue.push_back(PartialEvent::Step);
+                    self.pending_steps += 1;
                 }
+                SentByServer::Event(QueuedEvent::UniverseEvent(event)) => self
+                    .event_queue
+                    .push_back(PartialEvent::UniverseEvent(event)),
                 SentByServer::IdAssigned(id) => {
                     self.my_id = Some(id);
                     info!("Got id assigned: {:?}", id);
                     self.endpoint
                         .send(SentByClient::UniverseEvent(UniverseEvent::PlayerConnected));
                 }
+            }
+        }
+        if self.pending_steps < 10 && self.last_step.elapsed() < LOW_TICK_TIME {
+            return;
+        }
+        while !self.event_queue.is_empty() {
+            match self.event_queue.pop_front().unwrap() {
+                PartialEvent::Step => {
+                    self.pending_steps -= 1;
+                    self.last_step += TICK_TIME;
+                    universe.step();
+                }
+                PartialEvent::UniverseEvent(event) => universe.process_event(event),
             }
         }
     }
@@ -193,6 +221,9 @@ impl NetmanVariant {
         Ok(Self::Client(Client {
             endpoint,
             my_id: None,
+            event_queue: Default::default(),
+            pending_steps: 0,
+            last_step: Instant::now(),
         }))
     }
 

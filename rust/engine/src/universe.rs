@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
+pub const LOW_TICK_TIME: Duration = Duration::from_micros(15000);
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct VesselID(u32);
