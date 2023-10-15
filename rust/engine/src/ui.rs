@@ -33,7 +33,7 @@ impl UiState {
 }
 
 impl UiInCtx<'_> {
-    /// Called (ideally) 60 times per frame.
+    /// Called (ideally) 60 times per second.
     ///
     /// Not synced to universe updates.
     pub fn on_update(&mut self) {
