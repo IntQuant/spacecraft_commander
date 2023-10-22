@@ -9,6 +9,8 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+engine_num = {path = "../engine_num"}
+
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 indexmap = { version = "*", features = ["serde"] }
 
@@ -25,6 +27,5 @@ aes-gcm = "*"
 rand_core = {version = "0.6.4", features = ["getrandom"]}
 
 thiserror = "*"
+smallvec = {version = "1.11.1", features = ["serde"]}
 
-engine_num = {path = "../engine_num"}
-smallvec = "1.11.1"

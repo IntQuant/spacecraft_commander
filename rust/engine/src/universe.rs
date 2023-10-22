@@ -5,9 +5,12 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
+use self::ui_events::UiEventCtx;
+
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
 
 mod tilemap;
+pub mod ui_events;
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct VesselID(u32);
@@ -40,19 +43,36 @@ impl Universe {
             players: Default::default(),
         }
     }
+    pub fn update_ctx(&mut self) -> UpdateCtx {
+        UpdateCtx {
+            universe: self,
+            evctx: UiEventCtx::default(),
+        }
+    }
+}
+
+pub struct UpdateCtx<'a> {
+    universe: &'a mut Universe,
+    evctx: UiEventCtx,
+}
+
+impl UpdateCtx<'_> {
+    pub fn evctx(self) -> UiEventCtx {
+        self.evctx
+    }
 
     pub fn process_event(&mut self, event: OwnedUniverseEvent) {
         let player_id = event.player_id;
         match event.event {
             UniverseEvent::PlayerConnected => {
                 info!("Creating player for {player_id:?}");
-                self.players.entry(player_id).or_insert(Player {
+                self.universe.players.entry(player_id).or_insert(Player {
                     position: Vec3::new(Fixed::new_int(0), Fixed::new_int(10), Fixed::new_int(0)),
                     vessel: VesselID(0),
                 });
             }
             UniverseEvent::PlayerMoved { new_position } => {
-                if let Some(player) = self.players.get_mut(&player_id) {
+                if let Some(player) = self.universe.players.get_mut(&player_id) {
                     player.position = new_position;
                 }
             }

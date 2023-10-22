@@ -1,3 +1,4 @@
+use crate::universe::ui_events::UiEventCtx;
 use std::{
     collections::{HashMap, VecDeque},
     time::{Duration, Instant},
@@ -64,7 +65,7 @@ pub struct Server {
 }
 
 impl Client {
-    fn process_events(&mut self, universe: &mut Universe) {
+    fn process_events(&mut self, universe: &mut Universe) -> UiEventCtx {
         while let Some(msg) = self.endpoint.try_recv() {
             match msg {
                 SentByServer::SetUniverse(new_universe) => {
@@ -91,14 +92,15 @@ impl Client {
                 }
             }
         }
+        let mut update_ctx = universe.update_ctx();
         while !self.event_queue.is_empty() && self.last_step.elapsed() > Duration::ZERO {
             match self.event_queue.pop_front().unwrap() {
                 PartialEvent::Step => {
                     self.pending_steps -= 1;
                     self.last_step += TICK_TIME;
-                    universe.step();
+                    update_ctx.step();
                 }
-                PartialEvent::UniverseEvent(event) => universe.process_event(event),
+                PartialEvent::UniverseEvent(event) => update_ctx.process_event(event),
             }
         }
         if self.last_step.elapsed() > Duration::ZERO {
@@ -117,11 +119,12 @@ impl Client {
                 self.last_fix += Duration::from_millis(100);
             }
         }
+        update_ctx.evctx()
     }
 }
 
 impl Server {
-    fn process_events(&mut self, universe: &mut Universe) {
+    fn process_events(&mut self, universe: &mut Universe) -> UiEventCtx {
         while let Ok(mut conn) = self.new_connections.try_recv() {
             conn.send(SentByServer::SetUniverse(universe.clone()));
             let new_id = PlayerID(conn.endpoint_id().0);
@@ -161,6 +164,7 @@ impl Server {
             warn!("Lag detected - skipping 10+ ticks");
         }
 
+        let mut update_ctx = universe.update_ctx();
         while !self.event_queue.is_empty() {
             let has_space = self.endpoints.iter().all(|x| x.has_space());
             if !has_space {
@@ -182,10 +186,11 @@ impl Server {
                 endpoint.send(SentByServer::Event(msg.clone()));
             }
             match msg {
-                QueuedEvent::UniverseEvent(event) => universe.process_event(event),
-                QueuedEvent::StepUniverse => universe.step(),
+                QueuedEvent::UniverseEvent(event) => update_ctx.process_event(event),
+                QueuedEvent::StepUniverse => update_ctx.step(),
             }
         }
+        update_ctx.evctx()
     }
 }
 
@@ -257,7 +262,7 @@ impl NetmanVariant {
         }))
     }
 
-    pub fn process_events(&mut self, universe: &mut Universe) {
+    pub fn process_events(&mut self, universe: &mut Universe) -> UiEventCtx {
         match self {
             NetmanVariant::Client(client) => client.process_events(universe),
             NetmanVariant::Server(server) => server.process_events(universe),

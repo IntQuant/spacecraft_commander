@@ -2,27 +2,27 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
+use super::ui_events::UiEventCtx;
+
+pub type DefVec<T> = SmallVec<[T; 4]>;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Tile {}
+
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct TilePos(u32, u32, u32);
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct TileMap<T> {
-    tiles: IndexMap<(TilePos, u8), T>,
+    tiles: IndexMap<TilePos, DefVec<T>>,
 }
 
 impl<T: Clone> TileMap<T> {
-    pub fn get_all_at(&self, pos: TilePos) -> SmallVec<[T; 4]> {
-        let mut ret = SmallVec::new();
-        let mut i = 0;
-        loop {
-            if let Some(current) = self.tiles.get(&(pos, i)) {
-                ret.push(current.clone());
-                i += 1;
-            } else {
-                break;
-            }
-        }
-
-        ret
+    pub fn get_all_at(&self, pos: TilePos) -> DefVec<T> {
+        self.tiles.get(&pos).cloned().unwrap_or_default()
+    }
+    pub fn add_at(&mut self, evctx: &mut UiEventCtx, pos: TilePos, tile: T) {
+        evctx.tiles_changed.push(pos);
+        self.tiles.entry(pos).or_default().push(tile)
     }
 }

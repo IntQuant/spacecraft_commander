@@ -16,7 +16,7 @@ use util::OptionNetmanExt;
 
 mod netman;
 mod ui;
-mod universe;
+pub mod universe;
 mod util;
 
 struct MyExtension;
