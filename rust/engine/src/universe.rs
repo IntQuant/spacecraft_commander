@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use engine_num::{Fixed, Vec3};
 use indexmap::IndexMap;
@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
+
+mod tilemap;
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct VesselID(u32);
@@ -29,15 +31,11 @@ pub struct Player {
 pub struct Universe {
     pub vessels: IndexMap<VesselID, Vessel>,
     pub players: IndexMap<PlayerID, Player>,
-
-    #[serde(skip)]
-    unsynced_last_step: Option<Instant>,
 }
 
 impl Universe {
     pub fn new() -> Self {
         Self {
-            unsynced_last_step: None,
             vessels: Default::default(),
             players: Default::default(),
         }
@@ -62,15 +60,7 @@ impl Universe {
     }
 
     pub fn step(&mut self) {
-        self.unsynced_last_step = Some(Instant::now());
         // TODO
-    }
-
-    pub fn since_last_tick(&self) -> f32 {
-        self.unsynced_last_step
-            .unwrap_or_else(Instant::now)
-            .elapsed()
-            .as_secs_f32()
     }
 }
 
