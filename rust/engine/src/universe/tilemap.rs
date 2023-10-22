@@ -1,21 +1,28 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-
-const CHUNK_POS_SHIFT: u16 = 5;
-
-#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct ChunkPos(u16, u16, u16);
-
-#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct InPos(u16);
+use smallvec::SmallVec;
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct TilePos(u32, u32, u32);
 
-struct Chunk<T> {
-    items: Vec<(InPos, T)>,
+#[derive(Default)]
+pub struct TileMap<T> {
+    tiles: IndexMap<(TilePos, u8), T>,
 }
 
-pub struct TileMap<T> {
-    chunks: IndexMap<ChunkPos, Chunk<T>>,
+impl<T: Clone> TileMap<T> {
+    pub fn get_all_at(&self, pos: TilePos) -> SmallVec<[T; 4]> {
+        let mut ret = SmallVec::new();
+        let mut i = 0;
+        loop {
+            if let Some(current) = self.tiles.get(&(pos, i)) {
+                ret.push(current.clone());
+                i += 1;
+            } else {
+                break;
+            }
+        }
+
+        ret
+    }
 }
