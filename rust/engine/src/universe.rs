@@ -5,21 +5,34 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use self::ui_events::UiEventCtx;
+use self::{
+    tilemap::{Tile, TileMap},
+    ui_events::UiEventCtx,
+};
 
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
 
-mod tilemap;
+pub mod tilemap;
 pub mod ui_events;
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct VesselID(u32);
+pub struct VesselID(pub u32);
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct PlayerID(pub u32);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Vessel {}
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Vessel {
+    pub tiles: TileMap<Tile>,
+}
+
+impl Default for Vessel {
+    fn default() -> Self {
+        Self {
+            tiles: TileMap::new(),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
@@ -30,7 +43,7 @@ pub struct Player {
 /// The root of simulation. Should be the same on every client.
 ///
 /// Deterministic - same sequence of events and updates(steps) should result in same state.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Universe {
     pub vessels: IndexMap<VesselID, Vessel>,
     pub players: IndexMap<PlayerID, Player>,

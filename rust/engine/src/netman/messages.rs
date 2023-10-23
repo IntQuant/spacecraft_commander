@@ -8,7 +8,7 @@ pub enum QueuedEvent {
     StepUniverse,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub enum SentByServer {
     SetUniverse(Universe),
     Event(QueuedEvent),

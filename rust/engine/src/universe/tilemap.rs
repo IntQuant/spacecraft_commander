@@ -10,7 +10,11 @@ pub type DefVec<T> = SmallVec<[T; 4]>;
 pub struct Tile {}
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct TilePos(u32, u32, u32);
+pub struct TilePos {
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
+}
 
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct TileMap<T> {
@@ -18,11 +22,22 @@ pub struct TileMap<T> {
 }
 
 impl<T: Clone> TileMap<T> {
+    pub fn new() -> Self {
+        Self {
+            tiles: IndexMap::new(),
+        }
+    }
+
     pub fn get_all_at(&self, pos: TilePos) -> DefVec<T> {
         self.tiles.get(&pos).cloned().unwrap_or_default()
     }
     pub fn add_at(&mut self, evctx: &mut UiEventCtx, pos: TilePos, tile: T) {
         evctx.tiles_changed.push(pos);
         self.tiles.entry(pos).or_default().push(tile)
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (TilePos, &T)> + '_ {
+        self.tiles
+            .iter()
+            .flat_map(|(k, v)| v.iter().map(|t| (*k, t)))
     }
 }

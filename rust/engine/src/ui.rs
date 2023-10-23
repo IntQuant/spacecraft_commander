@@ -1,14 +1,15 @@
 use std::collections::HashSet;
 
+use anyhow::anyhow;
 use godot::{
     engine::CharacterBody3D,
-    prelude::{load, Node3D, PackedScene, SceneTree, ToVariant},
+    prelude::{load, Gd, Node, Node3D, PackedScene, SceneTree, ToVariant, Vector3},
 };
 use tracing::{info, warn};
 
 use crate::{
     netman::NetmanVariant,
-    universe::{PlayerID, Universe},
+    universe::{tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
     util::{IntoGodot, SceneTreeExt},
 };
 
@@ -24,20 +25,44 @@ pub struct UiInCtx<'a> {
 }
 
 /// Persistent Ui state.
-pub struct UiState {}
+pub struct UiState {
+    first_update: bool,
+    shown_tiles: Vec<Gd<Node>>,
+}
 
 impl UiState {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            first_update: true,
+            shown_tiles: Vec::new(),
+        }
     }
 }
 
 impl UiInCtx<'_> {
+    fn my_vessel_id(&self) -> anyhow::Result<VesselID> {
+        let my_id = self
+            .netman
+            .my_id()
+            .ok_or_else(|| anyhow!("client has no id assigned"))?;
+        self.universe
+            .players
+            .get(&my_id)
+            .map(|x| x.vessel)
+            .ok_or_else(|| anyhow!("no player with this id"))
+    }
+
     /// Called (ideally) 60 times per second.
     ///
     /// Not synced to universe updates.
-    pub fn on_update(&mut self) {
-        self.update_players_on_vessel();
+    pub fn on_update(&mut self, evctx: UiEventCtx) {
+        if self.state.first_update {
+            self.state.first_update = false;
+            self.upload_current_vessel().unwrap(); // TODO unwrap
+        } else {
+            self.update_players_on_vessel();
+            self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
+        }
     }
 
     /// Called before frame is rendered.
@@ -104,5 +129,40 @@ impl UiInCtx<'_> {
             }
             self.base.add_child(player_node);
         }
+    }
+
+    fn update_tiles(&mut self, tiles_changed: &[TilePos]) -> anyhow::Result<()> {
+        if !tiles_changed.is_empty() {
+            self.upload_current_vessel()?;
+        }
+        Ok(())
+    }
+
+    fn upload_current_vessel(&mut self) -> Result<(), anyhow::Error> {
+        for shown in &mut self.state.shown_tiles {
+            shown.queue_free()
+        }
+        self.state.shown_tiles.clear();
+        let vessel = self
+            .universe
+            .vessels
+            .get(&self.my_vessel_id()?)
+            .ok_or_else(|| anyhow!("given vessel does not exist"))?;
+        let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
+        Ok(for (pos, tile) in vessel.tiles.iter() {
+            let node = wall_scene.instantiate().unwrap();
+            node.clone().cast::<Node3D>().set_position(Vector3 {
+                x: pos.x as f32 * 2.0,
+                y: pos.y as f32 * 2.0,
+                z: pos.z as f32 * 2.0,
+            });
+            node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
+                x: -90.0,
+                y: 0.0,
+                z: 0.0,
+            });
+            self.base.add_child(node.clone());
+            self.state.shown_tiles.push(node);
+        })
     }
 }
