@@ -149,7 +149,7 @@ impl Node3DVirtual for GameClass {
     fn physics_process(&mut self, _dt: f64) {
         let evctx = self.netman.get_mut().process_events(&mut self.universe);
         if self.netman.get().my_id().is_some() {
-            self.with_ui_ctx(|ctx| ctx.on_update(evctx));
+            self.with_ui_ctx(|ctx| ctx.maybe_update(evctx));
         }
     }
 }

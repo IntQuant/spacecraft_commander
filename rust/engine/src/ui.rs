@@ -7,11 +7,15 @@ use godot::{
 };
 use tracing::{info, warn};
 
+mod player_manager;
+
 use crate::{
     netman::NetmanVariant,
     universe::{tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
     util::{IntoGodot, SceneTreeExt},
 };
+
+use self::player_manager::{player_manager, PlayerControllerState};
 
 /// Ui context that lives for a duration of a single frame or update.
 ///
@@ -52,17 +56,26 @@ impl UiInCtx<'_> {
             .ok_or_else(|| anyhow!("no player with this id"))
     }
 
+    pub fn maybe_update(&mut self, evctx: UiEventCtx) {
+        if self.state.first_update {
+            self.state.first_update = false;
+            self.on_init(evctx)
+        } else {
+            self.on_update(evctx)
+        }
+    }
+
+    fn on_init(&mut self, _evctx: UiEventCtx) {
+        self.upload_current_vessel().unwrap(); // TODO unwrap
+    }
+
     /// Called (ideally) 60 times per second.
     ///
     /// Not synced to universe updates.
-    pub fn on_update(&mut self, evctx: UiEventCtx) {
-        if self.state.first_update {
-            self.state.first_update = false;
-            self.upload_current_vessel().unwrap(); // TODO unwrap
-        } else {
-            self.update_players_on_vessel();
-            self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
-        }
+    fn on_update(&mut self, evctx: UiEventCtx) {
+        self.update_players_on_vessel();
+        self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
+        player_manager(self);
     }
 
     /// Called before frame is rendered.
