@@ -7,14 +7,10 @@ use godot::{
 };
 use tracing::{info, warn};
 
-mod player_manager;
-
 use crate::{
     universe::{tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
     util::{IntoGodot, SceneTreeExt},
 };
-
-use self::player_manager::{player_manager, PlayerControllerState};
 
 /// Ui context that lives for a duration of a single frame or update.
 ///
@@ -71,7 +67,6 @@ impl UiInCtx<'_> {
     fn on_update(&mut self, evctx: UiEventCtx) {
         self.update_players_on_vessel();
         self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
-        player_manager(self);
     }
 
     /// Called before frame is rendered.
