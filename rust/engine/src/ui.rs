@@ -10,7 +10,6 @@ use tracing::{info, warn};
 mod player_manager;
 
 use crate::{
-    netman::NetmanVariant,
     universe::{tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
     util::{IntoGodot, SceneTreeExt},
 };
@@ -21,7 +20,7 @@ use self::player_manager::{player_manager, PlayerControllerState};
 ///
 /// Has references to everything that should be available from ui.
 pub struct UiInCtx<'a> {
-    pub netman: &'a NetmanVariant,
+    pub my_id: PlayerID,
     pub universe: &'a Universe,
     pub scene: &'a mut SceneTree,
     pub base: &'a mut Node3D,
@@ -45,10 +44,7 @@ impl UiState {
 
 impl UiInCtx<'_> {
     fn my_vessel_id(&self) -> anyhow::Result<VesselID> {
-        let my_id = self
-            .netman
-            .my_id()
-            .ok_or_else(|| anyhow!("client has no id assigned"))?;
+        let my_id = self.my_id;
         self.universe
             .players
             .get(&my_id)
@@ -80,28 +76,22 @@ impl UiInCtx<'_> {
 
     /// Called before frame is rendered.
     pub fn on_render(&mut self) {
-        let my_id = self.netman.my_id();
         let players = self.scene.get_nodes_in_group("players".into());
         for player in players.iter_shared() {
             let mut player = player.cast::<CharacterBody3D>();
             let player_id = PlayerID(player.get("player".into()).to::<u32>());
-            if let Some(my_id) = my_id {
-                if my_id != player_id {
-                    if let Some(player_info) = self.universe.players.get(&player_id) {
-                        player.set_position(player_info.position.into_godot()); // TODO interpolate
-                    } else {
-                        warn!("Player {:?} not found", player_id)
-                    }
+            if self.my_id != player_id {
+                if let Some(player_info) = self.universe.players.get(&player_id) {
+                    player.set_position(player_info.position.into_godot()); // TODO interpolate
+                } else {
+                    warn!("Player {:?} not found", player_id)
                 }
             }
         }
     }
 
     fn update_players_on_vessel(&mut self) {
-        let Some(my_id) = self.netman.my_id() else {
-            return;
-        };
-        let Some(my_player) = self.universe.players.get(&my_id) else {
+        let Some(my_player) = self.universe.players.get(&self.my_id) else {
             return;
         };
         let current_vessel = my_player.vessel;
@@ -129,7 +119,7 @@ impl UiInCtx<'_> {
             info!("Adding {player_id:?} to ui");
             let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
             player_node.set("player".into(), player_id.0.to_variant());
-            player_node.set("controlled".into(), (my_id == player_id).to_variant());
+            player_node.set("controlled".into(), (self.my_id == player_id).to_variant());
             player_node.add_to_group("players".into());
             if let Some(player_info) = self.universe.players.get(&player_id) {
                 let position = player_info.position.into_godot();

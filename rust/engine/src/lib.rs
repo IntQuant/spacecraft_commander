@@ -155,15 +155,19 @@ impl Node3DVirtual for GameClass {
 }
 
 impl GameClass {
-    fn with_ui_ctx<T>(&mut self, f: impl FnOnce(&mut UiInCtx) -> T) -> T {
-        let mut ctx = UiInCtx {
-            netman: self.netman.get(),
-            universe: &self.universe,
-            scene: &mut self.base.get_tree().unwrap(),
-            base: &mut self.base,
-            state: &mut self.ui,
-        };
-        f(&mut ctx)
+    fn with_ui_ctx<T>(&mut self, f: impl FnOnce(&mut UiInCtx) -> T) -> Option<T> {
+        if let Some(my_id) = self.netman.get().my_id() {
+            let mut ctx = UiInCtx {
+                my_id,
+                universe: &self.universe,
+                scene: &mut self.base.get_tree().unwrap(),
+                base: &mut self.base,
+                state: &mut self.ui,
+            };
+            Some(f(&mut ctx))
+        } else {
+            None
+        }
     }
 }
 
