@@ -9,14 +9,14 @@ use std::sync::{atomic::AtomicBool, OnceLock};
 
 use engine_num::Vec3;
 use godot::{
-    engine::{Engine, Os, RenderingServer},
+    engine::{Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer},
     prelude::*,
 };
 use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use ui::{UiInCtx, UiState};
+use ui::{InputState, UiInCtx, UiState};
 use universe::{PlayerID, Universe};
 use util::OptionNetmanExt;
 
@@ -78,6 +78,7 @@ struct GameClass {
     universe: Universe,
     netman: Option<NetmanVariant>,
     ui: UiState,
+    input: InputState,
     #[base]
     base: Base<Node3D>,
 }
@@ -118,6 +119,7 @@ impl Node3DVirtual for GameClass {
             netman,
             ui: UiState::new(),
             base,
+            input: Default::default(),
         }
     }
     fn ready(&mut self) {
@@ -151,6 +153,13 @@ impl Node3DVirtual for GameClass {
         if self.netman.get().my_id().is_some() {
             self.with_ui_ctx(|ctx| ctx.maybe_update(evctx));
         }
+        self.input = Default::default();
+    }
+
+    fn input(&mut self, event: Gd<InputEvent>) {
+        if let Some(mouse_event) = event.try_cast::<InputEventMouseMotion>() {
+            self.input.mouse_rel += mouse_event.get_relative()
+        }
     }
 }
 
@@ -163,8 +172,15 @@ impl GameClass {
                 scene: &mut self.base.get_tree().unwrap(),
                 base: &mut self.base,
                 state: &mut self.ui,
+                dt: 1.0 / 60.0,
+                events: Vec::new(),
+                input: &self.input,
             };
-            Some(f(&mut ctx))
+            let ret = f(&mut ctx);
+            for event in ctx.events {
+                self.netman.get_mut().emit_event(event);
+            }
+            Some(ret)
         } else {
             None
         }

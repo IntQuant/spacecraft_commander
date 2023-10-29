@@ -3,14 +3,23 @@ use std::collections::HashSet;
 use anyhow::anyhow;
 use godot::{
     engine::CharacterBody3D,
-    prelude::{load, Gd, Node, Node3D, PackedScene, SceneTree, ToVariant, Vector3},
+    prelude::{load, Gd, Node, Node3D, PackedScene, SceneTree, ToVariant, Vector2, Vector3},
 };
 use tracing::{info, warn};
 
 use crate::{
-    universe::{tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
+    universe::{self, tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
     util::{IntoGodot, SceneTreeExt},
 };
+
+use self::systems::player_controls;
+
+mod systems;
+
+#[derive(Default)]
+pub struct InputState {
+    pub mouse_rel: Vector2,
+}
 
 /// Ui context that lives for a duration of a single frame or update.
 ///
@@ -21,12 +30,16 @@ pub struct UiInCtx<'a> {
     pub scene: &'a mut SceneTree,
     pub base: &'a mut Node3D,
     pub state: &'a mut UiState,
+    pub dt: f32,
+    pub events: Vec<universe::UniverseEvent>,
+    pub input: &'a InputState,
 }
 
 /// Persistent Ui state.
 pub struct UiState {
     first_update: bool,
     shown_tiles: Vec<Gd<Node>>,
+    my_player_node: Option<Gd<CharacterBody3D>>,
 }
 
 impl UiState {
@@ -34,6 +47,7 @@ impl UiState {
         Self {
             first_update: true,
             shown_tiles: Vec::new(),
+            my_player_node: None,
         }
     }
 }
@@ -67,6 +81,7 @@ impl UiInCtx<'_> {
     fn on_update(&mut self, evctx: UiEventCtx) {
         self.update_players_on_vessel();
         self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
+        player_controls(self)
     }
 
     /// Called before frame is rendered.
@@ -114,7 +129,11 @@ impl UiInCtx<'_> {
             info!("Adding {player_id:?} to ui");
             let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
             player_node.set("player".into(), player_id.0.to_variant());
-            player_node.set("controlled".into(), (self.my_id == player_id).to_variant());
+            let is_me = self.my_id == player_id;
+            if is_me {
+                self.state.my_player_node = Some(player_node.clone().cast());
+            }
+            player_node.set("controlled".into(), is_me.to_variant());
             player_node.add_to_group("players".into());
             if let Some(player_info) = self.universe.players.get(&player_id) {
                 let position = player_info.position.into_godot();
