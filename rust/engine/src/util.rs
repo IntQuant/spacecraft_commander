@@ -6,7 +6,7 @@ use godot::prelude::{
     StringName, Vector3,
 };
 
-use crate::netman::NetmanVariant;
+use crate::{netman::NetmanVariant, universe::tilemap::TilePos};
 
 pub trait IntoGodot {
     type Output;
@@ -28,6 +28,28 @@ impl IntoGodot for Vec3 {
 impl FromGodot<Vector3> for Vec3 {
     fn from_godot(val: Vector3) -> Self {
         Vec3::new(val.x.into(), val.y.into(), val.z.into())
+    }
+}
+
+impl FromGodot<Vector3> for TilePos {
+    fn from_godot(val: Vector3) -> Self {
+        Self {
+            x: (val.x / Self::GRID_STEP) as i32,
+            y: (val.y / Self::GRID_STEP) as i32,
+            z: (val.z / Self::GRID_STEP) as i32,
+        }
+    }
+}
+
+impl IntoGodot for TilePos {
+    type Output = Vector3;
+
+    fn into_godot(&self) -> Self::Output {
+        Vector3 {
+            x: self.x as f32 * Self::GRID_STEP,
+            y: self.y as f32 * Self::GRID_STEP,
+            z: self.z as f32 * Self::GRID_STEP,
+        }
     }
 }
 

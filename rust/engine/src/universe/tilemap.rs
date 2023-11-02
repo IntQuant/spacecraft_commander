@@ -16,6 +16,10 @@ pub struct TilePos {
     pub z: i32,
 }
 
+impl TilePos {
+    pub const GRID_STEP: f32 = 2.0;
+}
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct TileMap<T> {
     tiles: IndexMap<TilePos, DefVec<T>>,

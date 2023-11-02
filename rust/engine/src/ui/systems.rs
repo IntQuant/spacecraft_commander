@@ -1,9 +1,12 @@
 use std::f32::consts::PI;
 
 use engine_num::Vec3;
-use godot::prelude::{Input, Node3D, Vector3};
+use godot::prelude::*;
 
-use crate::{universe, util::FromGodot};
+use crate::{
+    universe::{self, tilemap::TilePos},
+    util::{FromGodot, IntoGodot},
+};
 
 use super::UiInCtx;
 
@@ -53,4 +56,38 @@ pub fn player_controls(ctx: &mut UiInCtx) {
         new_position: Vec3::from_godot(player_node.get_position()),
     };
     ctx.events.push(event);
+}
+
+pub fn player_placer(ctx: &mut UiInCtx) {
+    let Some(player_node) = &mut ctx.state.my_player_node else {
+        return;
+    };
+    let pos = player_node.get_position();
+    let cam = player_node
+        .get_node("Camera3D".into())
+        .unwrap()
+        .cast::<Node3D>();
+    let dir = -cam.get_global_transform().basis.col_c();
+    let place_pos = pos + dir * 5.0;
+    let place_tile = TilePos::from_godot(place_pos);
+    let place_pos_q = place_tile.into_godot();
+    if let Some(b_node) = &mut ctx.state.temp_build_node {
+        b_node.set_position(place_pos_q)
+    } else {
+        let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
+        let node = wall_scene.instantiate().unwrap();
+        ctx.base.add_child(node.clone());
+        let mut node = node.cast::<Node3D>();
+        node.set_rotation_degrees(Vector3 {
+            x: -90.0,
+            y: 0.0,
+            z: 0.0,
+        });
+        ctx.state.temp_build_node = Some(node);
+    }
+    if Input::singleton().is_action_just_pressed("g_place".into()) {
+        ctx.events.push(universe::UniverseEvent::TilePlaced {
+            position: place_tile,
+        })
+    }
 }

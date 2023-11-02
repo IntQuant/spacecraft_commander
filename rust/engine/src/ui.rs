@@ -12,7 +12,7 @@ use crate::{
     util::{IntoGodot, SceneTreeExt},
 };
 
-use self::systems::player_controls;
+use self::systems::{player_controls, player_placer};
 
 mod systems;
 
@@ -40,6 +40,7 @@ pub struct UiState {
     first_update: bool,
     shown_tiles: Vec<Gd<Node>>,
     my_player_node: Option<Gd<CharacterBody3D>>,
+    temp_build_node: Option<Gd<Node3D>>,
 }
 
 impl UiState {
@@ -48,6 +49,7 @@ impl UiState {
             first_update: true,
             shown_tiles: Vec::new(),
             my_player_node: None,
+            temp_build_node: None,
         }
     }
 }
@@ -81,7 +83,8 @@ impl UiInCtx<'_> {
     fn on_update(&mut self, evctx: UiEventCtx) {
         self.update_players_on_vessel();
         self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
-        player_controls(self)
+        player_controls(self);
+        player_placer(self);
     }
 
     /// Called before frame is rendered.
@@ -168,11 +171,7 @@ impl UiInCtx<'_> {
         let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
         Ok(for (pos, tile) in vessel.tiles.iter() {
             let node = wall_scene.instantiate().unwrap();
-            node.clone().cast::<Node3D>().set_position(Vector3 {
-                x: pos.x as f32 * 2.0,
-                y: pos.y as f32 * 2.0,
-                z: pos.z as f32 * 2.0,
-            });
+            node.clone().cast::<Node3D>().set_position(pos.into_godot());
             node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
                 x: -90.0,
                 y: 0.0,
