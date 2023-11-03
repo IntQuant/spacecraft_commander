@@ -5,7 +5,10 @@ use crate::{
     },
     util::FromGodot,
 };
-use std::sync::{atomic::AtomicBool, OnceLock};
+use std::{
+    ops::DerefMut,
+    sync::{atomic::AtomicBool, Arc, OnceLock},
+};
 
 use engine_num::Vec3;
 use godot::{
@@ -16,7 +19,7 @@ use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use ui::{InputState, UiInCtx, UiState};
+use ui::{resources::InputState, Ui, UiState2};
 use universe::{PlayerID, Universe};
 use util::OptionNetmanExt;
 
@@ -75,9 +78,10 @@ fn get_runtime() -> &'static Runtime {
 #[derive(GodotClass)]
 #[class(base=Node3D)]
 struct GameClass {
-    universe: Universe,
+    universe: Arc<Universe>,
     netman: Option<NetmanVariant>,
-    ui: UiState,
+    ui_state: UiState2,
+    ui: Ui,
     input: InputState,
     #[base]
     base: Base<Node3D>,
@@ -113,11 +117,12 @@ impl Node3DVirtual for GameClass {
             .unwrap()
             .tiles
             .add_at(&mut evctx, TilePos { x: 0, y: 0, z: 0 }, Tile {});
-
+        let universe = universe.into();
         Self {
             universe,
             netman,
-            ui: UiState::new(),
+            ui_state: UiState2::new(),
+            ui: Ui::new(),
             base,
             input: Default::default(),
         }
@@ -149,9 +154,12 @@ impl Node3DVirtual for GameClass {
     fn process(&mut self, _dt: f64) {}
 
     fn physics_process(&mut self, _dt: f64) {
-        let evctx = self.netman.get_mut().process_events(&mut self.universe);
+        let evctx = self
+            .netman
+            .get_mut()
+            .process_events(Arc::make_mut(&mut self.universe));
         if self.netman.get().my_id().is_some() {
-            self.with_ui_ctx(|ctx| ctx.maybe_update(evctx));
+            self.with_ui_ctx(|ctx| ctx.on_update(evctx));
         }
         self.input = Default::default();
     }
@@ -164,22 +172,19 @@ impl Node3DVirtual for GameClass {
 }
 
 impl GameClass {
-    fn with_ui_ctx<T>(&mut self, f: impl FnOnce(&mut UiInCtx) -> T) -> Option<T> {
+    fn with_ui_ctx<T>(&mut self, f: impl FnOnce(&mut Ui) -> T) -> Option<T> {
         if let Some(my_id) = self.netman.get().my_id() {
-            let mut ctx = UiInCtx {
+            self.ui.add_temporal_resources(
+                self.universe.clone(),
+                self.input.clone(),
+                self.base.deref_mut().to_owned(),
                 my_id,
-                universe: &self.universe,
-                scene: &mut self.base.get_tree().unwrap(),
-                base: &mut self.base,
-                state: &mut self.ui,
-                dt: 1.0 / 60.0,
-                events: Vec::new(),
-                input: &self.input,
-            };
-            let ret = f(&mut ctx);
-            for event in ctx.events {
-                self.netman.get_mut().emit_event(event);
-            }
+            );
+            let ret = f(&mut self.ui);
+            // for event in ctx.events {
+            //     self.netman.get_mut().emit_event(event);
+            // }
+            self.ui.remove_temporal_resources();
             Some(ret)
         } else {
             None

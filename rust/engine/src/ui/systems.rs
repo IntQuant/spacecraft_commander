@@ -1,23 +1,130 @@
-use std::f32::consts::PI;
+use std::{collections::HashSet, f32::consts::PI};
 
+use anyhow::anyhow;
+use bevy_ecs::{
+    change_detection::DetectChanges,
+    system::{NonSend, NonSendMut, Res},
+};
 use engine_num::Vec3;
-use godot::prelude::*;
+use godot::{engine::CharacterBody3D, prelude::*};
+use tracing::{info, warn};
 
 use crate::{
-    universe::{self, tilemap::TilePos},
-    util::{FromGodot, IntoGodot},
+    universe::{self, tilemap::TilePos, PlayerID},
+    util::{FromGodot, IntoGodot, SceneTreeExt},
 };
 
-use super::UiInCtx;
+use super::{
+    resources::{
+        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseResource,
+    },
+    UiInCtx,
+};
 
-pub fn player_controls(ctx: &mut UiInCtx) {
-    let Some(player_node) = &mut ctx.state.my_player_node else {
+pub fn upload_current_vessel(
+    universe: Res<UniverseResource>,
+    current_vessel: Res<CurrentVessel>,
+    mut root_node: NonSendMut<RootNode>,
+) {
+    if !current_vessel.is_changed() {
+        return;
+    } else {
+        info!("Uploading vessel");
+    }
+    // TODO
+    // for shown in &mut self.state.shown_tiles {
+    //     shown.queue_free()
+    // }
+    // self.state.shown_tiles.clear();
+    let vessel = universe
+        .0
+        .vessels
+        .get(&current_vessel.0)
+        .ok_or_else(|| anyhow!("given vessel does not exist"))
+        .unwrap(); // TODO
+    let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
+    for (pos, tile) in vessel.tiles.iter() {
+        let node = wall_scene.instantiate().unwrap();
+        node.clone().cast::<Node3D>().set_position(pos.into_godot());
+        node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
+            x: -90.0,
+            y: 0.0,
+            z: 0.0,
+        });
+        root_node.0.add_child(node.clone());
+        //self.state.shown_tiles.push(node);
+    }
+}
+
+pub fn update_players_on_vessel(
+    universe: Res<UniverseResource>,
+    current_player: Res<CurrentPlayer>,
+    current_vessel: Res<CurrentVessel>,
+    mut root_node: NonSendMut<RootNode>,
+    mut player_node_res: NonSendMut<Option<PlayerNode>>,
+) {
+    let mut on_current_vessel: HashSet<_> = universe
+        .0
+        .players
+        .iter()
+        .filter(|(_id, player)| player.vessel == current_vessel.0)
+        .map(|(id, _player)| *id)
+        .collect();
+
+    for mut player_character in root_node
+        .0
+        .get_tree()
+        .unwrap()
+        .iter_group::<CharacterBody3D>("players")
+    {
+        let character_player_id = PlayerID(player_character.get("player".into()).to::<u32>());
+        if on_current_vessel.contains(&character_player_id) {
+            on_current_vessel.remove(&character_player_id);
+        } else {
+            info!("Removing {character_player_id:?} from ui");
+            player_character.queue_free();
+        }
+    }
+    let not_yet_spawned = on_current_vessel;
+
+    for player_id in not_yet_spawned {
+        info!("Adding {player_id:?} to ui");
+        let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
+        player_node.set("player".into(), player_id.0.to_variant());
+        let is_me = current_player.0 == player_id;
+        if is_me {
+            *player_node_res = Some(PlayerNode {
+                player: player_node.clone().cast(),
+            });
+        }
+        player_node.set("controlled".into(), is_me.to_variant());
+        player_node.add_to_group("players".into());
+        if let Some(player_info) = universe.0.players.get(&player_id) {
+            let position = player_info.position.into_godot();
+            player_node
+                .clone()
+                .cast::<CharacterBody3D>()
+                .set_position(position)
+        } else {
+            warn!("Player {:?} not found", player_id)
+        }
+        root_node.0.add_child(player_node);
+    }
+}
+
+pub fn player_controls(
+    mut player_node: NonSendMut<Option<PlayerNode>>,
+    dt: Res<Dt>,
+    input: Res<InputState>,
+) {
+    let Some(player_node) = player_node.as_mut() else {
         return;
     };
+    let player_node = &mut player_node.player;
     let mut velocity = player_node.get_velocity();
     let mut position = player_node.get_position();
     if !player_node.is_on_floor() {
-        velocity.y -= 9.8 * ctx.dt;
+        velocity.y -= 9.8 * dt.0;
     }
     if player_node.is_on_floor() && Input::singleton().is_action_just_pressed("g_jump".into()) {
         velocity.y = 4.5;
@@ -42,7 +149,7 @@ pub fn player_controls(ctx: &mut UiInCtx) {
     player_node.set_position(position);
     player_node.move_and_slide();
 
-    let mouse_rotation = ctx.input.mouse_rel * -0.005;
+    let mouse_rotation = input.mouse_rel * -0.005;
     player_node.rotate(Vector3::UP, mouse_rotation.x);
     let mut cam = player_node
         .get_node("Camera3D".into())
@@ -55,7 +162,7 @@ pub fn player_controls(ctx: &mut UiInCtx) {
     let event = universe::UniverseEvent::PlayerMoved {
         new_position: Vec3::from_godot(player_node.get_position()),
     };
-    ctx.events.push(event);
+    //ctx.events.push(event); // TODO
 }
 
 pub fn player_placer(ctx: &mut UiInCtx) {
