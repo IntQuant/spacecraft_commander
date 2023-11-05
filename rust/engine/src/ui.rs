@@ -14,8 +14,8 @@ use self::{
         UniverseEventStorage, UniverseResource,
     },
     systems::{
-        player_controls, player_placer, update_player_positions, update_players_on_vessel,
-        upload_current_vessel, vessel_upload_condition, PlacerLocal,
+        player_controls, player_placer, player_remover, update_player_positions,
+        update_players_on_vessel, upload_current_vessel, vessel_upload_condition, PlacerLocal,
     },
 };
 
@@ -45,6 +45,7 @@ impl Ui {
             update_players_on_vessel,
             player_controls,
             player_placer,
+            player_remover,
         ));
 
         schedule_render.add_systems(update_player_positions);

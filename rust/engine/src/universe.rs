@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use self::{
-    tilemap::{Tile, TileMap, TilePos},
+    tilemap::{Tile, TileIndex, TileMap, TilePos},
     ui_events::UiEventCtx,
 };
 
@@ -86,14 +86,23 @@ impl UpdateCtx<'_> {
                     player.position = new_position;
                 }
             }
-            UniverseEvent::TilePlaced { position } => {
+            UniverseEvent::PlaceTile { position } => {
                 let Some(player) = self.universe.players.get(&player_id) else {
                     return;
                 };
                 let Some(vessel) = self.universe.vessels.get_mut(&player.vessel) else {
                     return;
                 };
-                vessel.tiles.add_at(&mut self.evctx, position, Tile {})
+                vessel.tiles.add_at(&mut self.evctx, position, Tile {});
+            }
+            UniverseEvent::RemoveTile { position, index } => {
+                let Some(player) = self.universe.players.get(&player_id) else {
+                    return;
+                };
+                let Some(vessel) = self.universe.vessels.get_mut(&player.vessel) else {
+                    return;
+                };
+                vessel.tiles.remove_at(&mut self.evctx, position, index);
             }
         }
     }
@@ -107,7 +116,8 @@ impl UpdateCtx<'_> {
 pub enum UniverseEvent {
     PlayerConnected,
     PlayerMoved { new_position: Vec3 },
-    TilePlaced { position: TilePos },
+    PlaceTile { position: TilePos },
+    RemoveTile { position: TilePos, index: TileIndex },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

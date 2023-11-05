@@ -10,6 +10,9 @@ var controlled = true:
 	set(value):
 		$Camera3D.current = value
 		controlled = value
+		$Camera3D/RayCast3D.enabled = value
 
 func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	$Camera3D/RayCast3D.target_position = Vector3(0, -10, 0)
+	

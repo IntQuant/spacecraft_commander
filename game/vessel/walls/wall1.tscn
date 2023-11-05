@@ -6,7 +6,8 @@ size = Vector3(2, 2, 0.05)
 [sub_resource type="BoxShape3D" id="BoxShape3D_jcjbr"]
 size = Vector3(2, 2, 0.05)
 
-[node name="wall1" type="StaticBody3D"]
+[node name="wall1" type="BaseStaticBody"]
+collision_layer = 3
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_pxneu")

@@ -20,6 +20,8 @@ impl TilePos {
     pub const GRID_STEP: f32 = 2.0;
 }
 
+pub type TileIndex = u8;
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct TileMap<T> {
     tiles: IndexMap<TilePos, DefVec<T>>,
@@ -39,9 +41,17 @@ impl<T: Clone> TileMap<T> {
         evctx.tiles_changed.push(pos);
         self.tiles.entry(pos).or_default().push(tile)
     }
-    pub fn iter(&self) -> impl Iterator<Item = (TilePos, &T)> + '_ {
+    pub fn remove_at(&mut self, evctx: &mut UiEventCtx, pos: TilePos, index: TileIndex) {
+        evctx.tiles_changed.push(pos);
+        let tile_list = self.tiles.entry(pos).or_default();
+        let index = index as usize;
+        if index < tile_list.len() {
+            tile_list.swap_remove(index);
+        }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (TileIndex, TilePos, &T)> + '_ {
         self.tiles
             .iter()
-            .flat_map(|(k, v)| v.iter().map(|t| (*k, t)))
+            .flat_map(|(k, v)| v.iter().enumerate().map(|(i, t)| (i as TileIndex, *k, t)))
     }
 }

@@ -6,12 +6,16 @@ use bevy_ecs::{
     system::{NonSendMut, Res, ResMut},
 };
 use engine_num::Vec3;
-use godot::{engine::CharacterBody3D, prelude::*};
+use godot::{
+    engine::{CharacterBody3D, RayCast3D},
+    prelude::*,
+};
 use tracing::{info, warn};
 
 use crate::{
     universe::{self, tilemap::TilePos, PlayerID},
     util::{FromGodot, SceneTreeExt, ToGodot},
+    BaseStaticBody, BodyKind,
 };
 
 use super::resources::{
@@ -36,23 +40,27 @@ pub fn upload_current_vessel(
     }
 
     let vessel = universe
-        .0
         .vessels
         .get(&current_vessel.0)
         .ok_or_else(|| anyhow!("given vessel does not exist"))
         .unwrap(); // TODO
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
-    for (pos, _tile) in vessel.tiles.iter() {
-        let mut node = wall_scene.instantiate().unwrap();
-        node.clone().cast::<Node3D>().set_position(pos.to_godot());
-        node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
+    for (tile_index, pos, _tile) in vessel.tiles.iter() {
+        let mut node = wall_scene.instantiate().unwrap().cast::<BaseStaticBody>();
+
+        node.bind_mut().kind = Some(crate::BodyKind::Tile {
+            index: tile_index,
+            position: pos,
+        });
+
+        node.set_position(pos.to_godot());
+        node.set_rotation_degrees(Vector3 {
             x: -90.0,
             y: 0.0,
             z: 0.0,
         });
         node.add_to_group("tiles".into());
-        root_node.0.add_child(node.clone());
-        //self.state.shown_tiles.push(node);
+        root_node.0.add_child(node.upcast());
     }
 }
 
@@ -199,9 +207,36 @@ pub fn player_placer(
         local.temp_build_node = Some(node);
     }
     if Input::singleton().is_action_just_pressed("g_place".into()) {
-        events.push(universe::UniverseEvent::TilePlaced {
+        events.push(universe::UniverseEvent::PlaceTile {
             position: place_tile,
         })
+    }
+}
+
+pub fn player_remover(
+    mut player_node: NonSendMut<Option<PlayerNode>>,
+    mut events: ResMut<UniverseEventStorage>,
+) {
+    let Some(player_node) = player_node.as_mut() else {
+        return;
+    };
+    let raycast = player_node
+        .get_node("Camera3D/RayCast3D".into())
+        .unwrap()
+        .cast::<RayCast3D>();
+    let hit = raycast
+        .get_collider()
+        .and_then(|c| c.try_cast::<BaseStaticBody>());
+
+    if let Some(hit) = hit {
+        if Input::singleton().is_action_just_pressed("g_remove".into()) {
+            info!("Remove {:?}", hit.bind());
+            let Some(kind) = hit.bind().kind else {
+                return;
+            };
+            let BodyKind::Tile { index, position } = kind;
+            events.push(universe::UniverseEvent::RemoveTile { position, index });
+        }
     }
 }
 

@@ -12,7 +12,10 @@ use std::{
 
 use engine_num::Vec3;
 use godot::{
-    engine::{Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer},
+    engine::{
+        Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer, StaticBody3D,
+        StaticBody3DVirtual,
+    },
     prelude::*,
 };
 use netman::NetmanVariant;
@@ -20,7 +23,7 @@ use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputState, Ui};
-use universe::{PlayerID, Universe};
+use universe::{tilemap::TileIndex, PlayerID, Universe};
 use util::OptionNetmanExt;
 
 mod netman;
@@ -208,5 +211,28 @@ impl GameClass {
         self.netman
             .get_mut()
             .emit_event(universe::UniverseEvent::PlayerMoved { new_position: pos });
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BodyKind {
+    Tile { index: TileIndex, position: TilePos },
+}
+
+#[derive(GodotClass, Debug)]
+#[class(base=StaticBody3D)]
+struct BaseStaticBody {
+    kind: Option<BodyKind>,
+    #[base]
+    _base: Base<StaticBody3D>,
+}
+
+#[godot_api]
+impl StaticBody3DVirtual for BaseStaticBody {
+    fn init(base: Base<Self::Base>) -> Self {
+        Self {
+            kind: None,
+            _base: base,
+        }
     }
 }
