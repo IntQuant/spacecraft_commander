@@ -34,9 +34,9 @@ impl FromGodot<Vector3> for Vec3 {
 impl FromGodot<Vector3> for TilePos {
     fn from_godot(val: Vector3) -> Self {
         Self {
-            x: (val.x / Self::GRID_STEP) as i32,
-            y: (val.y / Self::GRID_STEP) as i32,
-            z: (val.z / Self::GRID_STEP) as i32,
+            x: (val.x / Self::GRID_STEP).round() as i32,
+            y: (val.y / Self::GRID_STEP).round() as i32,
+            z: (val.z / Self::GRID_STEP).round() as i32,
         }
     }
 }
