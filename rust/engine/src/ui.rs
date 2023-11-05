@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use bevy_ecs::{schedule::Schedule, world::World};
+use bevy_ecs::{
+    schedule::{Schedule, ScheduleLabel},
+    world::World,
+};
 use godot::{
     engine::CharacterBody3D,
     prelude::{Gd, Node, Node3D, SceneTree},
@@ -52,11 +55,17 @@ pub struct Ui {
     schedule_render: Schedule,
 }
 
+#[derive(ScheduleLabel, Hash, PartialEq, Eq, Debug, Clone)]
+struct UpdateSchedule;
+
+#[derive(ScheduleLabel, Hash, PartialEq, Eq, Debug, Clone)]
+struct RenderSchedule;
+
 impl Ui {
     pub fn new() -> Self {
-        let mut schedule_update = Schedule::new();
+        let mut schedule_update = Schedule::new(UpdateSchedule);
         let mut world = World::new();
-        let schedule_render = Schedule::new();
+        let schedule_render = Schedule::new(RenderSchedule);
 
         schedule_update.add_systems((
             upload_current_vessel,
