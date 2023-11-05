@@ -10,12 +10,13 @@ use crate::universe::{self, ui_events::UiEventCtx, PlayerID, Universe, VesselID}
 
 use self::{
     resources::{
-        CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode, SceneTreeRes,
-        UniverseEventStorage, UniverseResource,
+        CurrentFacing, CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode,
+        SceneTreeRes, UniverseEventStorage, UniverseResource,
     },
     systems::{
-        player_controls, player_placer, player_remover, update_player_positions,
-        update_players_on_vessel, upload_current_vessel, vessel_upload_condition, PlacerLocal,
+        building_facing, building_placer, building_remover, player_controls,
+        update_player_positions, update_players_on_vessel, upload_current_vessel,
+        vessel_upload_condition, PlacerLocal,
     },
 };
 
@@ -44,8 +45,7 @@ impl Ui {
             upload_current_vessel.run_if(vessel_upload_condition),
             update_players_on_vessel,
             player_controls,
-            player_placer,
-            player_remover,
+            (building_facing, building_placer, building_remover),
         ));
 
         schedule_render.add_systems(update_player_positions);
@@ -54,6 +54,7 @@ impl Ui {
         world.insert_resource(Dt(1.0 / 60.0));
         world.insert_non_send_resource(None::<PlayerNode>);
         world.insert_non_send_resource(PlacerLocal::default());
+        world.insert_resource(CurrentFacing(universe::rotations::BuildingFacing::Px));
 
         Self {
             world,

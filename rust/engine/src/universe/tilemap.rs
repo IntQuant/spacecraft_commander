@@ -2,12 +2,32 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use super::ui_events::UiEventCtx;
+use super::{
+    rotations::{BuildingFacing, BuildingRotation, CompactBasis},
+    ui_events::UiEventCtx,
+};
 
 pub type DefVec<T> = SmallVec<[T; 4]>;
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct TileOrientation {
+    pub facing: BuildingFacing,
+    pub rotation: BuildingRotation,
+}
+
+impl TileOrientation {
+    pub fn new(facing: BuildingFacing, rotation: BuildingRotation) -> Self {
+        Self { facing, rotation }
+    }
+    pub fn to_basis(&self) -> CompactBasis {
+        self.facing.to_basis()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Tile {}
+pub struct Tile {
+    pub orientation: TileOrientation,
+}
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct TilePos {

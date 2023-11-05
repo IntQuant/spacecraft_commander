@@ -13,14 +13,19 @@ use godot::{
 use tracing::{info, warn};
 
 use crate::{
-    universe::{self, tilemap::TilePos, PlayerID},
+    universe::{
+        self,
+        rotations::{self, BuildingFacing},
+        tilemap::{TileOrientation, TilePos},
+        PlayerID,
+    },
     util::{FromGodot, SceneTreeExt, ToGodot},
     BaseStaticBody, BodyKind,
 };
 
 use super::resources::{
-    CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode, SceneTreeRes,
-    UniverseEventStorage, UniverseResource,
+    CurrentFacing, CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode,
+    SceneTreeRes, UniverseEventStorage, UniverseResource,
 };
 
 pub fn vessel_upload_condition(current_vessel: Res<CurrentVessel>, evctx: Res<EvCtx>) -> bool {
@@ -45,7 +50,7 @@ pub fn upload_current_vessel(
         .ok_or_else(|| anyhow!("given vessel does not exist"))
         .unwrap(); // TODO
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
-    for (tile_index, pos, _tile) in vessel.tiles.iter() {
+    for (tile_index, pos, tile) in vessel.tiles.iter() {
         let mut node = wall_scene.instantiate().unwrap().cast::<BaseStaticBody>();
 
         node.bind_mut().kind = Some(crate::BodyKind::Tile {
@@ -54,11 +59,8 @@ pub fn upload_current_vessel(
         });
 
         node.set_position(pos.to_godot());
-        node.set_rotation_degrees(Vector3 {
-            x: -90.0,
-            y: 0.0,
-            z: 0.0,
-        });
+        let basis = tile.orientation.to_basis().to_godot();
+        node.set_basis(basis);
         node.add_to_group("tiles".into());
         root_node.0.add_child(node.upcast());
     }
@@ -137,17 +139,19 @@ pub fn player_controls(
     if position.y < -100.0 {
         position.y = 100.0;
     }
-
-    let input_vec = Input::singleton().get_vector(
-        "g_left".into(),
-        "g_right".into(),
-        "g_forward".into(),
-        "g_back".into(),
-    );
-    let direction = player_node.get_transform().basis * Vector3::new(input_vec.x, 0.0, input_vec.y);
-    let direction = direction.normalized() * 5.0;
-    velocity.x = direction.x;
-    velocity.z = direction.z;
+    if !Input::singleton().is_action_pressed("g_rot_en".into()) {
+        let input_vec = Input::singleton().get_vector(
+            "g_left".into(),
+            "g_right".into(),
+            "g_forward".into(),
+            "g_back".into(),
+        );
+        let direction =
+            player_node.get_transform().basis * Vector3::new(input_vec.x, 0.0, input_vec.y);
+        let direction = direction.normalized() * 5.0;
+        velocity.x = direction.x;
+        velocity.z = direction.z;
+    }
 
     player_node.set_velocity(velocity);
     player_node.set_position(position);
@@ -174,11 +178,30 @@ pub struct PlacerLocal {
     temp_build_node: Option<Gd<Node3D>>,
 }
 
-pub fn player_placer(
+pub fn building_facing(mut current_facing: ResMut<CurrentFacing>) {
+    let input = Input::singleton();
+    if input.is_action_pressed("g_rot_en".into()) {
+        let actions = [
+            input.is_action_just_pressed("g_rot_d".into()),
+            input.is_action_just_pressed("g_rot_w".into()),
+            input.is_action_just_pressed("g_rot_a".into()),
+            input.is_action_just_pressed("g_rot_s".into()),
+        ];
+        let action_id = actions.iter().position(|x| *x);
+        if let Some(action_id) = action_id {
+            info!("Action {}", action_id);
+            current_facing.0 = current_facing.turn(action_id as u8, 0); // TODO current rotation
+            info!("Current facing: {:?}", current_facing.0);
+        }
+    }
+}
+
+pub fn building_placer(
     mut player_node: NonSendMut<Option<PlayerNode>>,
     mut events: ResMut<UniverseEventStorage>,
     mut root_node: NonSendMut<RootNode>,
     mut local: NonSendMut<PlacerLocal>,
+    current_facing: Res<CurrentFacing>,
 ) {
     let Some(player_node) = player_node.as_mut() else {
         return;
@@ -189,31 +212,28 @@ pub fn player_placer(
         .unwrap()
         .cast::<Node3D>();
     let dir = -cam.get_global_transform().basis.col_c();
-    let place_pos = pos + dir * 5.0;
+    let place_pos = pos + dir * 3.0;
     let place_tile = TilePos::from_godot(place_pos);
     let place_pos_q = place_tile.to_godot();
     if let Some(b_node) = &mut local.temp_build_node {
-        b_node.set_position(place_pos_q)
+        b_node.set_position(place_pos_q);
+        b_node.set_basis(current_facing.to_basis().to_godot());
     } else {
         let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
         let node = wall_scene.instantiate().unwrap();
         root_node.add_child(node.clone());
-        let mut node = node.cast::<Node3D>();
-        node.set_rotation_degrees(Vector3 {
-            x: -90.0,
-            y: 0.0,
-            z: 0.0,
-        });
+        let node = node.cast::<Node3D>();
         local.temp_build_node = Some(node);
     }
     if Input::singleton().is_action_just_pressed("g_place".into()) {
         events.push(universe::UniverseEvent::PlaceTile {
             position: place_tile,
+            orientation: TileOrientation::new(current_facing.0, rotations::BuildingRotation::N),
         })
     }
 }
 
-pub fn player_remover(
+pub fn building_remover(
     mut player_node: NonSendMut<Option<PlayerNode>>,
     mut events: ResMut<UniverseEventStorage>,
 ) {

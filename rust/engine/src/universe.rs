@@ -6,12 +6,13 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use self::{
-    tilemap::{Tile, TileIndex, TileMap, TilePos},
+    tilemap::{Tile, TileIndex, TileMap, TileOrientation, TilePos},
     ui_events::UiEventCtx,
 };
 
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
 
+pub mod rotations;
 pub mod tilemap;
 pub mod ui_events;
 
@@ -86,14 +87,19 @@ impl UpdateCtx<'_> {
                     player.position = new_position;
                 }
             }
-            UniverseEvent::PlaceTile { position } => {
+            UniverseEvent::PlaceTile {
+                position,
+                orientation,
+            } => {
                 let Some(player) = self.universe.players.get(&player_id) else {
                     return;
                 };
                 let Some(vessel) = self.universe.vessels.get_mut(&player.vessel) else {
                     return;
                 };
-                vessel.tiles.add_at(&mut self.evctx, position, Tile {});
+                vessel
+                    .tiles
+                    .add_at(&mut self.evctx, position, Tile { orientation });
             }
             UniverseEvent::RemoveTile { position, index } => {
                 let Some(player) = self.universe.players.get(&player_id) else {
@@ -115,9 +121,17 @@ impl UpdateCtx<'_> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum UniverseEvent {
     PlayerConnected,
-    PlayerMoved { new_position: Vec3 },
-    PlaceTile { position: TilePos },
-    RemoveTile { position: TilePos, index: TileIndex },
+    PlayerMoved {
+        new_position: Vec3,
+    },
+    PlaceTile {
+        position: TilePos,
+        orientation: TileOrientation,
+    },
+    RemoveTile {
+        position: TilePos,
+        index: TileIndex,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

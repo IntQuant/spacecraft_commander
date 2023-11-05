@@ -1,6 +1,7 @@
 use crate::{
     universe::{
-        tilemap::{Tile, TilePos},
+        rotations,
+        tilemap::{Tile, TileOrientation, TilePos},
         Vessel, VesselID,
     },
     util::FromGodot,
@@ -28,7 +29,7 @@ use util::OptionNetmanExt;
 
 mod netman;
 mod ui;
-pub mod universe;
+pub(crate) mod universe;
 mod util;
 
 struct MyExtension;
@@ -118,7 +119,16 @@ impl Node3DVirtual for GameClass {
             .get_mut(&VesselID(0))
             .unwrap()
             .tiles
-            .add_at(&mut evctx, TilePos { x: 0, y: 0, z: 0 }, Tile {});
+            .add_at(
+                &mut evctx,
+                TilePos { x: 0, y: 0, z: 0 },
+                Tile {
+                    orientation: TileOrientation::new(
+                        rotations::BuildingFacing::Ny,
+                        rotations::BuildingRotation::N,
+                    ),
+                },
+            );
         let universe = universe.into();
         Self {
             universe,

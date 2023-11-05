@@ -2,11 +2,14 @@ use std::iter::Map;
 
 use engine_num::Vec3;
 use godot::prelude::{
-    meta::VariantMetadata, Array, FromVariant, Gd, GodotClass, Inherits, Node, SceneTree,
+    meta::VariantMetadata, Array, Basis, FromVariant, Gd, GodotClass, Inherits, Node, SceneTree,
     StringName, Vector3,
 };
 
-use crate::{netman::NetmanVariant, universe::tilemap::TilePos};
+use crate::{
+    netman::NetmanVariant,
+    universe::{rotations::CompactBasis, tilemap::TilePos},
+};
 
 pub trait ToGodot {
     type Output;
@@ -50,6 +53,34 @@ impl ToGodot for TilePos {
             y: self.y as f32 * Self::GRID_STEP,
             z: self.z as f32 * Self::GRID_STEP,
         }
+    }
+}
+
+impl ToGodot for [f32; 3] {
+    type Output = Vector3;
+
+    fn to_godot(&self) -> Self::Output {
+        Vector3::new(self[0], self[1], self[2])
+    }
+}
+
+impl ToGodot for CompactBasis {
+    type Output = Basis;
+
+    fn to_godot(&self) -> Self::Output {
+        let mut raw_basis = [[0.0f32; 3]; 3];
+        for (i, &e) in self.0.iter().enumerate() {
+            if e > 0 {
+                raw_basis[i][e as usize - 1] = 1.0;
+            } else {
+                raw_basis[i][(-e) as usize - 1] = -1.0;
+            }
+        }
+        Basis::from_cols(
+            raw_basis[0].to_godot(),
+            raw_basis[1].to_godot(),
+            raw_basis[2].to_godot(),
+        )
     }
 }
 

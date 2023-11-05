@@ -4,7 +4,9 @@ use std::sync::Arc;
 use bevy_ecs::system::Resource;
 use godot::{engine::CharacterBody3D, prelude::*};
 
-use crate::universe::{ui_events::UiEventCtx, PlayerID, Universe, UniverseEvent, VesselID};
+use crate::universe::{
+    rotations::BuildingFacing, ui_events::UiEventCtx, PlayerID, Universe, UniverseEvent, VesselID,
+};
 
 #[derive(Deref, Resource)]
 pub struct UniverseResource(pub Arc<Universe>);
@@ -39,3 +41,6 @@ pub struct UniverseEventStorage(pub Vec<UniverseEvent>);
 
 #[derive(Deref, DerefMut, Resource)]
 pub struct EvCtx(pub UiEventCtx);
+
+#[derive(Deref, DerefMut, Resource)]
+pub struct CurrentFacing(pub BuildingFacing);
