@@ -19,7 +19,7 @@ use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use ui::{resources::InputState, Ui, UiState2};
+use ui::{resources::InputState, Ui};
 use universe::{PlayerID, Universe};
 use util::OptionNetmanExt;
 
@@ -80,7 +80,6 @@ fn get_runtime() -> &'static Runtime {
 struct GameClass {
     universe: Arc<Universe>,
     netman: Option<NetmanVariant>,
-    ui_state: UiState2,
     ui: Ui,
     input: InputState,
     #[base]
@@ -121,7 +120,6 @@ impl Node3DVirtual for GameClass {
         Self {
             universe,
             netman,
-            ui_state: UiState2::new(),
             ui: Ui::new(),
             base,
             input: Default::default(),

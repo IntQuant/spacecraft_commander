@@ -3,7 +3,7 @@ use std::{collections::HashSet, f32::consts::PI};
 use anyhow::anyhow;
 use bevy_ecs::{
     change_detection::DetectChanges,
-    system::{NonSend, NonSendMut, Res, ResMut},
+    system::{Local, NonSendMut, Res, ResMut},
 };
 use engine_num::Vec3;
 use godot::{engine::CharacterBody3D, prelude::*};
@@ -16,27 +16,28 @@ use crate::{
 
 use super::{
     resources::{
-        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseEventStorage,
-        UniverseResource,
+        CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode, SceneTreeRes,
+        UniverseEventStorage, UniverseResource,
     },
     UiInCtx,
 };
 
+pub fn vessel_upload_condition(current_vessel: Res<CurrentVessel>, evctx: Res<EvCtx>) -> bool {
+    current_vessel.is_changed() || !evctx.tiles_changed.is_empty()
+}
+
 pub fn upload_current_vessel(
     universe: Res<UniverseResource>,
     current_vessel: Res<CurrentVessel>,
+    mut scene_tree: NonSendMut<SceneTreeRes>,
     mut root_node: NonSendMut<RootNode>,
 ) {
-    if !current_vessel.is_changed() {
-        return;
-    } else {
-        info!("Uploading vessel");
+    info!("Uploading vessel");
+
+    for mut shown in &mut scene_tree.iter_group::<Node>("tiles") {
+        shown.queue_free()
     }
-    // TODO
-    // for shown in &mut self.state.shown_tiles {
-    //     shown.queue_free()
-    // }
-    // self.state.shown_tiles.clear();
+
     let vessel = universe
         .0
         .vessels
@@ -45,13 +46,14 @@ pub fn upload_current_vessel(
         .unwrap(); // TODO
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
     for (pos, tile) in vessel.tiles.iter() {
-        let node = wall_scene.instantiate().unwrap();
+        let mut node = wall_scene.instantiate().unwrap();
         node.clone().cast::<Node3D>().set_position(pos.into_godot());
         node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
             x: -90.0,
             y: 0.0,
             z: 0.0,
         });
+        node.add_to_group("tiles".into());
         root_node.0.add_child(node.clone());
         //self.state.shown_tiles.push(node);
     }
@@ -61,23 +63,18 @@ pub fn update_players_on_vessel(
     universe: Res<UniverseResource>,
     current_player: Res<CurrentPlayer>,
     current_vessel: Res<CurrentVessel>,
+    mut scene_tree: NonSendMut<SceneTreeRes>,
     mut root_node: NonSendMut<RootNode>,
     mut player_node_res: NonSendMut<Option<PlayerNode>>,
 ) {
     let mut on_current_vessel: HashSet<_> = universe
-        .0
         .players
         .iter()
         .filter(|(_id, player)| player.vessel == current_vessel.0)
         .map(|(id, _player)| *id)
         .collect();
 
-    for mut player_character in root_node
-        .0
-        .get_tree()
-        .unwrap()
-        .iter_group::<CharacterBody3D>("players")
-    {
+    for mut player_character in scene_tree.iter_group::<CharacterBody3D>("players") {
         let character_player_id = PlayerID(player_character.get("player".into()).to::<u32>());
         if on_current_vessel.contains(&character_player_id) {
             on_current_vessel.remove(&character_player_id);
@@ -109,7 +106,7 @@ pub fn update_players_on_vessel(
         } else {
             warn!("Player {:?} not found", player_id)
         }
-        root_node.0.add_child(player_node);
+        root_node.add_child(player_node);
     }
 }
 
@@ -167,8 +164,20 @@ pub fn player_controls(
     events.0.push(event);
 }
 
-pub fn player_placer(ctx: &mut UiInCtx) {
-    let Some(player_node) = &mut ctx.state.my_player_node else {
+#[derive(Default)]
+pub struct PlacerLocal {
+    temp_build_node: Option<Gd<Node3D>>,
+}
+
+pub fn player_placer(
+    mut player_node: NonSendMut<Option<PlayerNode>>,
+    dt: Res<Dt>,
+    input: Res<InputState>,
+    mut events: ResMut<UniverseEventStorage>,
+    mut root_node: NonSendMut<RootNode>,
+    mut local: NonSendMut<PlacerLocal>,
+) {
+    let Some(player_node) = player_node.as_mut() else {
         return;
     };
     let pos = player_node.get_position();
@@ -180,23 +189,42 @@ pub fn player_placer(ctx: &mut UiInCtx) {
     let place_pos = pos + dir * 5.0;
     let place_tile = TilePos::from_godot(place_pos);
     let place_pos_q = place_tile.into_godot();
-    if let Some(b_node) = &mut ctx.state.temp_build_node {
+    if let Some(b_node) = &mut local.temp_build_node {
         b_node.set_position(place_pos_q)
     } else {
         let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
         let node = wall_scene.instantiate().unwrap();
-        ctx.base.add_child(node.clone());
+        root_node.add_child(node.clone());
         let mut node = node.cast::<Node3D>();
         node.set_rotation_degrees(Vector3 {
             x: -90.0,
             y: 0.0,
             z: 0.0,
         });
-        ctx.state.temp_build_node = Some(node);
+        local.temp_build_node = Some(node);
     }
     if Input::singleton().is_action_just_pressed("g_place".into()) {
-        ctx.events.push(universe::UniverseEvent::TilePlaced {
+        events.push(universe::UniverseEvent::TilePlaced {
             position: place_tile,
         })
+    }
+}
+
+pub fn update_player_positions(
+    mut scene_tree: NonSendMut<SceneTreeRes>,
+    universe: Res<UniverseResource>,
+    current_player: Res<CurrentPlayer>,
+) {
+    let players = scene_tree.get_nodes_in_group("players".into());
+    for player in players.iter_shared() {
+        let mut player = player.cast::<CharacterBody3D>();
+        let player_id = PlayerID(player.get("player".into()).to::<u32>());
+        if current_player.0 != player_id {
+            if let Some(player_info) = universe.players.get(&player_id) {
+                player.set_position(player_info.position.into_godot()); // TODO interpolate
+            } else {
+                warn!("Player {:?} not found", player_id)
+            }
+        }
     }
 }

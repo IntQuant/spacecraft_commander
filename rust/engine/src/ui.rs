@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use bevy_ecs::{
-    schedule::{Schedule, ScheduleLabel},
+    schedule::{IntoSystemConfigs, Schedule, ScheduleLabel},
     world::World,
 };
 use godot::{
@@ -18,10 +18,13 @@ use crate::{
 
 use self::{
     resources::{
-        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseEventStorage,
-        UniverseResource,
+        CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode, SceneTreeRes,
+        UniverseEventStorage, UniverseResource,
     },
-    systems::{player_controls, player_placer, update_players_on_vessel, upload_current_vessel},
+    systems::{
+        player_controls, player_placer, update_player_positions, update_players_on_vessel,
+        upload_current_vessel, vessel_upload_condition, PlacerLocal,
+    },
 };
 
 pub mod resources;
@@ -65,16 +68,21 @@ impl Ui {
     pub fn new() -> Self {
         let mut schedule_update = Schedule::new(UpdateSchedule);
         let mut world = World::new();
-        let schedule_render = Schedule::new(RenderSchedule);
+        let mut schedule_render = Schedule::new(RenderSchedule);
 
         schedule_update.add_systems((
-            upload_current_vessel,
+            upload_current_vessel.run_if(vessel_upload_condition),
             update_players_on_vessel,
             player_controls,
+            player_placer,
         ));
+
+        schedule_render.add_systems(update_player_positions);
+
         world.insert_resource(CurrentVessel(VesselID(0)));
         world.insert_resource(Dt(1.0 / 60.0));
         world.insert_non_send_resource(None::<PlayerNode>);
+        world.insert_non_send_resource(PlacerLocal::default());
 
         Self {
             world,
@@ -92,6 +100,8 @@ impl Ui {
     ) {
         self.world.insert_resource(UniverseResource(universe));
         self.world.insert_resource(input);
+        self.world
+            .insert_non_send_resource(SceneTreeRes(root.get_tree().unwrap()));
         self.world.insert_non_send_resource(RootNode(root));
         self.world.insert_resource(CurrentPlayer(my_id));
         self.world.insert_resource(UniverseEventStorage(Vec::new()));
@@ -106,7 +116,9 @@ impl Ui {
     }
 
     pub fn on_update(&mut self, evctx: UiEventCtx) {
+        self.world.insert_resource(EvCtx(evctx));
         self.schedule_update.run(&mut self.world);
+        self.world.remove_resource::<EvCtx>();
         self.world.clear_trackers();
     }
     pub fn on_render(&mut self) {
@@ -155,24 +167,10 @@ impl UiInCtx<'_> {
         // self.update_players_on_vessel();
         self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
                                                           //player_controls(self);
-        player_placer(self);
+                                                          // player_placer(self);
     }
 
     /// Called before frame is rendered.
-    pub fn on_render(&mut self) {
-        let players = self.scene.get_nodes_in_group("players".into());
-        for player in players.iter_shared() {
-            let mut player = player.cast::<CharacterBody3D>();
-            let player_id = PlayerID(player.get("player".into()).to::<u32>());
-            if self.my_id != player_id {
-                if let Some(player_info) = self.universe.players.get(&player_id) {
-                    player.set_position(player_info.position.into_godot()); // TODO interpolate
-                } else {
-                    warn!("Player {:?} not found", player_id)
-                }
-            }
-        }
-    }
 
     fn update_tiles(&mut self, tiles_changed: &[TilePos]) -> anyhow::Result<()> {
         if !tiles_changed.is_empty() {

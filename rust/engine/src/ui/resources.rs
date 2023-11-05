@@ -1,14 +1,12 @@
+use derive_more::{Deref, DerefMut};
 use std::sync::Arc;
 
 use bevy_ecs::system::Resource;
-use godot::{
-    engine::CharacterBody3D,
-    prelude::{Gd, Node3D, Vector2},
-};
+use godot::{engine::CharacterBody3D, prelude::*};
 
-use crate::universe::{PlayerID, Universe, UniverseEvent, VesselID};
+use crate::universe::{ui_events::UiEventCtx, PlayerID, Universe, UniverseEvent, VesselID};
 
-#[derive(Resource)]
+#[derive(Deref, Resource)]
 pub struct UniverseResource(pub Arc<Universe>);
 
 #[derive(Default, Resource, Clone)]
@@ -16,20 +14,28 @@ pub struct InputState {
     pub mouse_rel: Vector2,
 }
 
-#[derive(Resource)]
+#[derive(Deref, DerefMut, Resource)]
 pub struct CurrentPlayer(pub PlayerID);
 
-#[derive(Resource)]
+#[derive(Deref, DerefMut, Resource)]
 pub struct CurrentVessel(pub VesselID);
 
+#[derive(Deref, DerefMut)]
 pub struct RootNode(pub Gd<Node3D>);
 
+#[derive(Deref, DerefMut)]
+pub struct SceneTreeRes(pub Gd<godot::prelude::SceneTree>);
+
+#[derive(Deref, DerefMut)]
 pub struct PlayerNode {
     pub player: Gd<CharacterBody3D>,
 }
 
-#[derive(Resource)]
+#[derive(Deref, DerefMut, Resource)]
 pub struct Dt(pub f32);
 
-#[derive(Resource)]
+#[derive(Deref, DerefMut, Resource)]
 pub struct UniverseEventStorage(pub Vec<UniverseEvent>);
+
+#[derive(Deref, DerefMut, Resource)]
+pub struct EvCtx(pub UiEventCtx);
