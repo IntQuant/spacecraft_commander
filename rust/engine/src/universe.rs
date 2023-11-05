@@ -43,7 +43,7 @@ pub struct Player {
 /// The root of simulation. Should be the same on every client.
 ///
 /// Deterministic - same sequence of events and updates(steps) should result in same state.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Universe {
     pub vessels: IndexMap<VesselID, Vessel>,
     pub players: IndexMap<PlayerID, Player>,
@@ -51,10 +51,7 @@ pub struct Universe {
 
 impl Universe {
     pub fn new() -> Self {
-        Self {
-            vessels: Default::default(),
-            players: Default::default(),
-        }
+        Self::default()
     }
     pub fn update_ctx(&mut self) -> UpdateCtx {
         UpdateCtx {

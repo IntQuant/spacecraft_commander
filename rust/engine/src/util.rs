@@ -8,19 +8,19 @@ use godot::prelude::{
 
 use crate::{netman::NetmanVariant, universe::tilemap::TilePos};
 
-pub trait IntoGodot {
+pub trait ToGodot {
     type Output;
-    fn into_godot(&self) -> Self::Output;
+    fn to_godot(&self) -> Self::Output;
 }
 
 pub trait FromGodot<T> {
     fn from_godot(val: T) -> Self;
 }
 
-impl IntoGodot for Vec3 {
+impl ToGodot for Vec3 {
     type Output = Vector3;
 
-    fn into_godot(&self) -> Self::Output {
+    fn to_godot(&self) -> Self::Output {
         Vector3::new(self.x.into(), self.y.into(), self.z.into())
     }
 }
@@ -41,10 +41,10 @@ impl FromGodot<Vector3> for TilePos {
     }
 }
 
-impl IntoGodot for TilePos {
+impl ToGodot for TilePos {
     type Output = Vector3;
 
-    fn into_godot(&self) -> Self::Output {
+    fn to_godot(&self) -> Self::Output {
         Vector3 {
             x: self.x as f32 * Self::GRID_STEP,
             y: self.y as f32 * Self::GRID_STEP,

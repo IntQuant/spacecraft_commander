@@ -128,7 +128,7 @@ impl Server {
         while let Ok(mut conn) = self.new_connections.try_recv() {
             conn.send(SentByServer::SetUniverse(universe.clone()));
             let new_id = PlayerID(conn.endpoint_id().0);
-            conn.send(SentByServer::IdAssigned(new_id.clone()));
+            conn.send(SentByServer::IdAssigned(new_id));
             self.player_map.insert(conn.endpoint_id(), new_id); // TODO proper auth
             self.endpoints.push(conn);
         }

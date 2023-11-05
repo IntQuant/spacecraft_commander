@@ -11,7 +11,7 @@ use tracing::{info, warn};
 
 use crate::{
     universe::{self, tilemap::TilePos, PlayerID},
-    util::{FromGodot, IntoGodot, SceneTreeExt},
+    util::{FromGodot, SceneTreeExt, ToGodot},
 };
 
 use super::resources::{
@@ -44,7 +44,7 @@ pub fn upload_current_vessel(
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
     for (pos, _tile) in vessel.tiles.iter() {
         let mut node = wall_scene.instantiate().unwrap();
-        node.clone().cast::<Node3D>().set_position(pos.into_godot());
+        node.clone().cast::<Node3D>().set_position(pos.to_godot());
         node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
             x: -90.0,
             y: 0.0,
@@ -95,7 +95,7 @@ pub fn update_players_on_vessel(
         player_node.set("controlled".into(), is_me.to_variant());
         player_node.add_to_group("players".into());
         if let Some(player_info) = universe.0.players.get(&player_id) {
-            let position = player_info.position.into_godot();
+            let position = player_info.position.to_godot();
             player_node
                 .clone()
                 .cast::<CharacterBody3D>()
@@ -183,7 +183,7 @@ pub fn player_placer(
     let dir = -cam.get_global_transform().basis.col_c();
     let place_pos = pos + dir * 5.0;
     let place_tile = TilePos::from_godot(place_pos);
-    let place_pos_q = place_tile.into_godot();
+    let place_pos_q = place_tile.to_godot();
     if let Some(b_node) = &mut local.temp_build_node {
         b_node.set_position(place_pos_q)
     } else {
@@ -216,7 +216,7 @@ pub fn update_player_positions(
         let player_id = PlayerID(player.get("player".into()).to::<u32>());
         if current_player.0 != player_id {
             if let Some(player_info) = universe.players.get(&player_id) {
-                player.set_position(player_info.position.into_godot()); // TODO interpolate
+                player.set_position(player_info.position.to_godot()); // TODO interpolate
             } else {
                 warn!("Player {:?} not found", player_id)
             }

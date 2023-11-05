@@ -93,7 +93,7 @@ impl Node3DVirtual for GameClass {
         let args = Os::singleton().get_cmdline_user_args();
         info!("Args: {:?}", args);
         let netman = if !Engine::singleton().is_editor_hint() {
-            let arg1 = if args.len() > 0 {
+            let arg1 = if !args.is_empty() {
                 String::from(args.get(0))
             } else {
                 "".to_string()

@@ -217,7 +217,7 @@ impl RemoteEndpointShared {
     {
         loop {
             let (val, size_read) = reader.read().await?;
-            if let Err(_) = sender.send(val).await {
+            if sender.send(val).await.is_err() {
                 return Ok(());
             }
             self.received_count.fetch_add(size_read, Ordering::Relaxed);
