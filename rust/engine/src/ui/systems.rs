@@ -3,7 +3,7 @@ use std::{collections::HashSet, f32::consts::PI};
 use anyhow::anyhow;
 use bevy_ecs::{
     change_detection::DetectChanges,
-    system::{NonSend, NonSendMut, Res},
+    system::{NonSend, NonSendMut, Res, ResMut},
 };
 use engine_num::Vec3;
 use godot::{engine::CharacterBody3D, prelude::*};
@@ -16,7 +16,8 @@ use crate::{
 
 use super::{
     resources::{
-        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseResource,
+        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseEventStorage,
+        UniverseResource,
     },
     UiInCtx,
 };
@@ -116,6 +117,7 @@ pub fn player_controls(
     mut player_node: NonSendMut<Option<PlayerNode>>,
     dt: Res<Dt>,
     input: Res<InputState>,
+    mut events: ResMut<UniverseEventStorage>,
 ) {
     let Some(player_node) = player_node.as_mut() else {
         return;
@@ -162,7 +164,7 @@ pub fn player_controls(
     let event = universe::UniverseEvent::PlayerMoved {
         new_position: Vec3::from_godot(player_node.get_position()),
     };
-    //ctx.events.push(event); // TODO
+    events.0.push(event);
 }
 
 pub fn player_placer(ctx: &mut UiInCtx) {

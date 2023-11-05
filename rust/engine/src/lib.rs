@@ -181,10 +181,10 @@ impl GameClass {
                 my_id,
             );
             let ret = f(&mut self.ui);
-            // for event in ctx.events {
-            //     self.netman.get_mut().emit_event(event);
-            // }
-            self.ui.remove_temporal_resources();
+            let events = self.ui.remove_temporal_resources();
+            for event in events {
+                self.netman.get_mut().emit_event(event);
+            }
             Some(ret)
         } else {
             None

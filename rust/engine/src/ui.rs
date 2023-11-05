@@ -1,21 +1,22 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use bevy_ecs::{schedule::Schedule, world::World};
 use godot::{
     engine::CharacterBody3D,
-    prelude::{load, Gd, Node, Node3D, PackedScene, SceneTree, ToVariant, Vector2, Vector3},
+    prelude::{Gd, Node, Node3D, SceneTree},
 };
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::{
     universe::{self, tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
-    util::{IntoGodot, SceneTreeExt},
+    util::IntoGodot,
 };
 
 use self::{
     resources::{
-        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseResource,
+        CurrentPlayer, CurrentVessel, Dt, InputState, PlayerNode, RootNode, UniverseEventStorage,
+        UniverseResource,
     },
     systems::{player_controls, player_placer, update_players_on_vessel, upload_current_vessel},
 };
@@ -84,10 +85,15 @@ impl Ui {
         self.world.insert_resource(input);
         self.world.insert_non_send_resource(RootNode(root));
         self.world.insert_resource(CurrentPlayer(my_id));
+        self.world.insert_resource(UniverseEventStorage(Vec::new()));
     }
-    pub fn remove_temporal_resources(&mut self) {
+    pub fn remove_temporal_resources(&mut self) -> Vec<universe::UniverseEvent> {
         self.world.remove_resource::<UniverseResource>();
         self.world.remove_non_send_resource::<RootNode>();
+        self.world
+            .remove_resource::<UniverseEventStorage>()
+            .unwrap()
+            .0
     }
 
     pub fn on_update(&mut self, evctx: UiEventCtx) {

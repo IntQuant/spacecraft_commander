@@ -6,7 +6,7 @@ use godot::{
     prelude::{Gd, Node3D, Vector2},
 };
 
-use crate::universe::{PlayerID, Universe, VesselID};
+use crate::universe::{PlayerID, Universe, UniverseEvent, VesselID};
 
 #[derive(Resource)]
 pub struct UniverseResource(pub Arc<Universe>);
@@ -30,3 +30,6 @@ pub struct PlayerNode {
 
 #[derive(Resource)]
 pub struct Dt(pub f32);
+
+#[derive(Resource)]
+pub struct UniverseEventStorage(pub Vec<UniverseEvent>);
