@@ -1,20 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use bevy_ecs::{
     schedule::{IntoSystemConfigs, Schedule, ScheduleLabel},
     world::World,
 };
-use godot::{
-    engine::CharacterBody3D,
-    prelude::{Gd, Node, Node3D, SceneTree},
-};
-use tracing::warn;
+use godot::prelude::{Gd, Node3D};
 
-use crate::{
-    universe::{self, tilemap::TilePos, ui_events::UiEventCtx, PlayerID, Universe, VesselID},
-    util::IntoGodot,
-};
+use crate::universe::{self, ui_events::UiEventCtx, PlayerID, Universe, VesselID};
 
 use self::{
     resources::{
@@ -29,28 +21,6 @@ use self::{
 
 pub mod resources;
 mod systems;
-
-/// Ui context that lives for a duration of a single frame or update.
-///
-/// Has references to everything that should be available from ui.
-pub struct UiInCtx<'a> {
-    pub my_id: PlayerID,
-    pub universe: &'a Universe,
-    pub scene: &'a mut SceneTree,
-    pub base: &'a mut Node3D,
-    pub state: &'a mut UiState2,
-    pub dt: f32,
-    pub events: Vec<universe::UniverseEvent>,
-    pub input: &'a InputState,
-}
-
-/// Persistent Ui state.
-pub struct UiState2 {
-    first_update: bool,
-    shown_tiles: Vec<Gd<Node>>,
-    my_player_node: Option<Gd<CharacterBody3D>>,
-    temp_build_node: Option<Gd<Node3D>>,
-}
 
 pub struct Ui {
     world: World,
@@ -123,59 +93,5 @@ impl Ui {
     }
     pub fn on_render(&mut self) {
         self.schedule_render.run(&mut self.world);
-    }
-}
-
-impl UiState2 {
-    pub fn new() -> Self {
-        Self {
-            first_update: true,
-            shown_tiles: Vec::new(),
-            my_player_node: None,
-            temp_build_node: None,
-        }
-    }
-}
-
-impl UiInCtx<'_> {
-    fn my_vessel_id(&self) -> anyhow::Result<VesselID> {
-        let my_id = self.my_id;
-        self.universe
-            .players
-            .get(&my_id)
-            .map(|x| x.vessel)
-            .ok_or_else(|| anyhow!("no player with this id"))
-    }
-
-    pub fn maybe_update(&mut self, evctx: UiEventCtx) {
-        if self.state.first_update {
-            self.state.first_update = false;
-            self.on_init(evctx)
-        } else {
-            self.on_update(evctx)
-        }
-    }
-
-    fn on_init(&mut self, _evctx: UiEventCtx) {
-        // self.upload_current_vessel().unwrap(); // TODO unwrap
-    }
-
-    /// Called (ideally) 60 times per second.
-    ///
-    /// Not synced to universe updates.
-    fn on_update(&mut self, evctx: UiEventCtx) {
-        // self.update_players_on_vessel();
-        self.update_tiles(&evctx.tiles_changed).unwrap(); // TODO unwrap
-                                                          //player_controls(self);
-                                                          // player_placer(self);
-    }
-
-    /// Called before frame is rendered.
-
-    fn update_tiles(&mut self, tiles_changed: &[TilePos]) -> anyhow::Result<()> {
-        if !tiles_changed.is_empty() {
-            // self.upload_current_vessel()?;
-        }
-        Ok(())
     }
 }

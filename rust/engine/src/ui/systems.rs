@@ -3,7 +3,7 @@ use std::{collections::HashSet, f32::consts::PI};
 use anyhow::anyhow;
 use bevy_ecs::{
     change_detection::DetectChanges,
-    system::{Local, NonSendMut, Res, ResMut},
+    system::{NonSendMut, Res, ResMut},
 };
 use engine_num::Vec3;
 use godot::{engine::CharacterBody3D, prelude::*};
@@ -14,12 +14,9 @@ use crate::{
     util::{FromGodot, IntoGodot, SceneTreeExt},
 };
 
-use super::{
-    resources::{
-        CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode, SceneTreeRes,
-        UniverseEventStorage, UniverseResource,
-    },
-    UiInCtx,
+use super::resources::{
+    CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode, SceneTreeRes,
+    UniverseEventStorage, UniverseResource,
 };
 
 pub fn vessel_upload_condition(current_vessel: Res<CurrentVessel>, evctx: Res<EvCtx>) -> bool {
@@ -45,7 +42,7 @@ pub fn upload_current_vessel(
         .ok_or_else(|| anyhow!("given vessel does not exist"))
         .unwrap(); // TODO
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
-    for (pos, tile) in vessel.tiles.iter() {
+    for (pos, _tile) in vessel.tiles.iter() {
         let mut node = wall_scene.instantiate().unwrap();
         node.clone().cast::<Node3D>().set_position(pos.into_godot());
         node.clone().cast::<Node3D>().set_rotation_degrees(Vector3 {
@@ -171,8 +168,6 @@ pub struct PlacerLocal {
 
 pub fn player_placer(
     mut player_node: NonSendMut<Option<PlayerNode>>,
-    dt: Res<Dt>,
-    input: Res<InputState>,
     mut events: ResMut<UniverseEventStorage>,
     mut root_node: NonSendMut<RootNode>,
     mut local: NonSendMut<PlacerLocal>,
