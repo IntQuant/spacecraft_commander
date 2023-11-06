@@ -25,10 +25,10 @@ impl BuildingFacing {
         match self {
             BuildingFacing::Px => CompactBasis([1, 2, 3]),
             BuildingFacing::Py => CompactBasis([2, 1, 3]),
-            BuildingFacing::Pz => CompactBasis([3, 1, 2]),
-            BuildingFacing::Nx => CompactBasis([-1, 2, 3]),
+            BuildingFacing::Pz => CompactBasis([3, 2, -1]),
+            BuildingFacing::Nx => CompactBasis([-1, 2, -3]),
             BuildingFacing::Ny => CompactBasis([-2, 1, 3]),
-            BuildingFacing::Nz => CompactBasis([-3, 1, 2]),
+            BuildingFacing::Nz => CompactBasis([-3, 2, 1]),
         }
     }
     fn transitions(&self) -> [BuildingFacing; 4] {
