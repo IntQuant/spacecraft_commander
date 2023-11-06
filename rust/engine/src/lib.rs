@@ -29,7 +29,7 @@ use util::OptionNetmanExt;
 
 mod netman;
 mod ui;
-pub(crate) mod universe;
+pub use engine_universe as universe;
 mod util;
 
 struct MyExtension;
