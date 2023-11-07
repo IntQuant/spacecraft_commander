@@ -10,8 +10,8 @@ use crate::universe::{self, ui_events::UiEventCtx, PlayerID, Universe, VesselID}
 
 use self::{
     resources::{
-        CurrentFacing, CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode,
-        SceneTreeRes, UniverseEventStorage, UniverseResource,
+        CurrentFacing, CurrentPlayer, CurrentPlayerRotation, CurrentVessel, Dt, EvCtx, InputState,
+        PlayerNode, RootNode, SceneTreeRes, UniverseEventStorage, UniverseResource,
     },
     systems::{
         building_facing, building_placer, building_remover, player_controls,
@@ -55,6 +55,7 @@ impl Ui {
         world.insert_non_send_resource(None::<PlayerNode>);
         world.insert_non_send_resource(PlacerLocal::default());
         world.insert_resource(CurrentFacing(universe::rotations::BuildingFacing::Px));
+        world.insert_resource(CurrentPlayerRotation::default());
 
         Self {
             world,

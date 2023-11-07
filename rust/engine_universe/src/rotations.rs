@@ -47,7 +47,7 @@ impl BuildingFacing {
             _ => false,
         };
         if is_y {
-            transitions[((key + current) % 4) as usize]
+            transitions[((key + 4 - current) % 4) as usize]
         } else {
             transitions[key as usize]
         }

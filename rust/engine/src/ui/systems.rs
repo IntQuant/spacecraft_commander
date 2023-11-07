@@ -24,8 +24,8 @@ use crate::{
 };
 
 use super::resources::{
-    CurrentFacing, CurrentPlayer, CurrentVessel, Dt, EvCtx, InputState, PlayerNode, RootNode,
-    SceneTreeRes, UniverseEventStorage, UniverseResource,
+    CurrentFacing, CurrentPlayer, CurrentPlayerRotation, CurrentVessel, Dt, EvCtx, InputState,
+    PlayerNode, RootNode, SceneTreeRes, UniverseEventStorage, UniverseResource,
 };
 
 pub fn vessel_upload_condition(current_vessel: Res<CurrentVessel>, evctx: Res<EvCtx>) -> bool {
@@ -122,6 +122,7 @@ pub fn player_controls(
     dt: Res<Dt>,
     input: Res<InputState>,
     mut events: ResMut<UniverseEventStorage>,
+    mut current_player_rotation: ResMut<CurrentPlayerRotation>,
 ) {
     let Some(player_node) = player_node.as_mut() else {
         return;
@@ -159,6 +160,7 @@ pub fn player_controls(
 
     let mouse_rotation = input.mouse_rel * -0.005;
     player_node.rotate(Vector3::UP, mouse_rotation.x);
+    current_player_rotation.0 = player_node.get_rotation().y;
     let mut cam = player_node
         .get_node("Camera3D".into())
         .unwrap()
@@ -178,7 +180,10 @@ pub struct PlacerLocal {
     temp_build_node: Option<Gd<Node3D>>,
 }
 
-pub fn building_facing(mut current_facing: ResMut<CurrentFacing>) {
+pub fn building_facing(
+    mut current_facing: ResMut<CurrentFacing>,
+    current_player_rotation: Res<CurrentPlayerRotation>,
+) {
     let input = Input::singleton();
     if input.is_action_pressed("g_rot_en".into()) {
         let actions = [
@@ -189,9 +194,12 @@ pub fn building_facing(mut current_facing: ResMut<CurrentFacing>) {
         ];
         let action_id = actions.iter().position(|x| *x);
         if let Some(action_id) = action_id {
-            info!("Action {}", action_id);
-            current_facing.0 = current_facing.turn(action_id as u8, 0); // TODO current rotation
-            info!("Current facing: {:?}", current_facing.0);
+            let current = ((current_player_rotation.0 / (PI / 2.0) + 2.5) % 4.0) as u8;
+            current_facing.0 = current_facing.turn(action_id as u8, current);
+            info!(
+                "Current facing: {:?}, current: {}, rotation: {}",
+                current_facing.0, current, current_player_rotation.0
+            );
         }
     }
 }

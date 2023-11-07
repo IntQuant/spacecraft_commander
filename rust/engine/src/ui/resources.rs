@@ -44,3 +44,6 @@ pub struct EvCtx(pub UiEventCtx);
 
 #[derive(Deref, DerefMut, Resource)]
 pub struct CurrentFacing(pub BuildingFacing);
+
+#[derive(Deref, DerefMut, Resource, Default)]
+pub struct CurrentPlayerRotation(pub f32);
