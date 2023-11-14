@@ -1,9 +1,16 @@
 use std::time::Duration;
 
+use bevy_scene::{
+    serde::{SceneDeserializer, SceneSerializer},
+    DynamicScene, Scene, SceneSpawnError,
+};
+use bincode::Options;
 use engine_num::{Fixed, Vec3};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tracing::info;
+use type_registry::get_type_registry;
 
 use self::{
     tilemap::{Tile, TileIndex, TileMap, TileOrientation, TilePos},
@@ -15,6 +22,8 @@ pub const TICK_TIME: Duration = Duration::from_micros(16666);
 pub mod rotations;
 pub mod tilemap;
 pub mod ui_events;
+
+mod type_registry;
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct VesselID(pub u32);
@@ -41,24 +50,76 @@ pub struct Player {
     pub vessel: VesselID,
 }
 
+#[derive(Debug, Error)]
+pub enum ImportError {
+    #[error("Could not deserialize received scene: {0}")]
+    CouldNotDeserialize(#[from] bincode::Error),
+    #[error("Could not spawn received scene: {0}")]
+    CouldNotSpawn(#[from] SceneSpawnError),
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ExportedUniverse {
+    world_state: Vec<u8>,
+    vessels: IndexMap<VesselID, Vessel>,
+    players: IndexMap<PlayerID, Player>,
+}
+
 /// The root of simulation. Should be the same on every client.
 ///
 /// Deterministic - same sequence of events and updates(steps) should result in same state.
-#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Universe {
     pub vessels: IndexMap<VesselID, Vessel>,
     pub players: IndexMap<PlayerID, Player>,
+    world: bevy_ecs::world::World,
 }
 
 impl Universe {
     pub fn new() -> Self {
-        Self::default()
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(bevy_ecs::reflect::AppTypeRegistry(
+            get_type_registry().clone(),
+        ));
+        Universe {
+            vessels: Default::default(),
+            players: Default::default(),
+            world,
+        }
     }
     pub fn update_ctx(&mut self) -> UpdateCtx {
         UpdateCtx {
             universe: self,
             evctx: UiEventCtx::default(),
         }
+    }
+    pub fn to_exported(&self) -> ExportedUniverse {
+        info!("Exporting universe");
+        let dyn_scene = DynamicScene::from_world(&self.world);
+        let serializer = SceneSerializer::new(&dyn_scene, &get_type_registry());
+        let world_state = bincode::serialize(&serializer).expect("can export universe");
+        ExportedUniverse {
+            world_state,
+            vessels: self.vessels.clone(),
+            players: self.players.clone(),
+        }
+    }
+    pub fn from_exported(exported: ExportedUniverse) -> Result<Self, ImportError> {
+        info!("Importing exported universe");
+        let scene_deserializer = SceneDeserializer {
+            type_registry: &get_type_registry().read(),
+        };
+        let dyn_scene = bincode::DefaultOptions::new()
+            .with_fixint_encoding()
+            .deserialize_seed(scene_deserializer, &exported.world_state)?;
+        let scene = Scene::from_dynamic_scene(
+            &dyn_scene,
+            &bevy_ecs::reflect::AppTypeRegistry(get_type_registry().clone()),
+        )?;
+        Ok(Universe {
+            vessels: exported.vessels,
+            players: exported.players,
+            world: scene.world,
+        })
     }
 }
 

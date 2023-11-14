@@ -1,6 +1,7 @@
+use engine_universe::ExportedUniverse;
 use serde::{Deserialize, Serialize};
 
-use crate::universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent};
+use crate::universe::{OwnedUniverseEvent, PlayerID, UniverseEvent};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum QueuedEvent {
@@ -10,7 +11,7 @@ pub enum QueuedEvent {
 
 #[derive(Serialize, Deserialize)]
 pub enum SentByServer {
-    SetUniverse(Universe),
+    SetUniverse(ExportedUniverse),
     Event(QueuedEvent),
     IdAssigned(PlayerID),
 }

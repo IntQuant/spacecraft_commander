@@ -1,4 +1,3 @@
-use crate::universe::ui_events::UiEventCtx;
 use std::{
     collections::{HashMap, VecDeque},
     time::{Duration, Instant},
@@ -9,12 +8,14 @@ use tokio::{
     sync::mpsc,
     task::AbortHandle,
 };
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, TICK_TIME},
+    universe::{
+        ui_events::UiEventCtx, OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, TICK_TIME,
+    },
 };
 
 use self::{
@@ -71,7 +72,14 @@ impl Client {
                 SentByServer::SetUniverse(new_universe) => {
                     self.last_step = Instant::now();
                     info!("Setting new universe...");
-                    *universe = new_universe;
+                    match Universe::from_exported(new_universe) {
+                        Ok(new_universe) => {
+                            *universe = new_universe;
+                            info!("Set new universe")
+                        }
+                        Err(err) => error!("Could not set new universe: {err}"),
+                    }
+
                     info!("Clearing queues...");
                     self.event_queue.clear();
                     self.pending_steps = 0;
@@ -126,7 +134,7 @@ impl Client {
 impl Server {
     fn process_events(&mut self, universe: &mut Universe) -> UiEventCtx {
         while let Ok(mut conn) = self.new_connections.try_recv() {
-            conn.send(SentByServer::SetUniverse(universe.clone()));
+            conn.send(SentByServer::SetUniverse(universe.to_exported()));
             let new_id = PlayerID(conn.endpoint_id().0);
             conn.send(SentByServer::IdAssigned(new_id));
             self.player_map.insert(conn.endpoint_id(), new_id); // TODO proper auth

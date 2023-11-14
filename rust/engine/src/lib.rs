@@ -165,10 +165,9 @@ impl Node3DVirtual for GameClass {
     fn process(&mut self, _dt: f64) {}
 
     fn physics_process(&mut self, _dt: f64) {
-        let evctx = self
-            .netman
-            .get_mut()
-            .process_events(Arc::make_mut(&mut self.universe));
+        let evctx = self.netman.get_mut().process_events(
+            Arc::get_mut(&mut self.universe).expect("expected to be a single owner of a world"),
+        );
         if self.netman.get().my_id().is_some() {
             self.with_ui_ctx(|ctx| ctx.on_update(evctx));
         }

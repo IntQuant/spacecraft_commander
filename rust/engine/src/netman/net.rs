@@ -251,12 +251,16 @@ impl Drop for RemoteEndpointShared {
             "Stats for endpoint {:?}: {} bytes received, {} bytes sent",
             self.endpoint_id, received, sent,
         );
-        info!(
-            "Existed for {} seconds, {} B/s rx, {} B/s tx",
-            elapsed,
-            received / elapsed,
-            sent / elapsed
-        );
+        if elapsed > 0 {
+            info!(
+                "Existed for {} seconds, {} B/s rx, {} B/s tx",
+                elapsed,
+                received / elapsed,
+                sent / elapsed
+            );
+        } else {
+            info!("Existed for 0 seconds, no bandwidth info available");
+        }
     }
 }
 
