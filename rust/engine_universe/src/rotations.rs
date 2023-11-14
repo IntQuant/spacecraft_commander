@@ -1,8 +1,9 @@
+use bevy_reflect::Reflect;
 use serde::{Deserialize, Serialize};
 
 pub struct CompactBasis(pub [i8; 3]);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
 pub enum BuildingFacing {
     Px,
     Nx,
@@ -12,7 +13,7 @@ pub enum BuildingFacing {
     Nz,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
 pub enum BuildingRotation {
     N,
     W,

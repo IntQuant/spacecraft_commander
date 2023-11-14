@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use bevy_ecs::{
+    entity::Entity,
     schedule::{IntoSystemConfigs, Schedule, ScheduleLabel},
     world::World,
 };
 use godot::prelude::{Gd, Node3D};
+use universe::ecs::ids::{PlayerID, VesselID};
 
-use crate::universe::{self, ui_events::UiEventCtx, PlayerID, Universe, VesselID};
+use crate::universe::{self, ui_events::UiEventCtx, Universe};
 
 use self::{
     resources::{
@@ -50,7 +52,7 @@ impl Ui {
 
         schedule_render.add_systems(update_player_positions);
 
-        world.insert_resource(CurrentVessel(VesselID(0)));
+        world.insert_resource(CurrentVessel(VesselID(Entity::PLACEHOLDER)));
         world.insert_resource(Dt(1.0 / 60.0));
         world.insert_non_send_resource(None::<PlayerNode>);
         world.insert_non_send_resource(PlacerLocal::default());

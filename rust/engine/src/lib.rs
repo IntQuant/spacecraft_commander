@@ -1,8 +1,9 @@
 use crate::{
     universe::{
+        ecs::ids::{PlayerID, VesselID},
         rotations,
         tilemap::{Tile, TileOrientation, TilePos},
-        Vessel, VesselID,
+        Vessel,
     },
     util::FromGodot,
 };
@@ -15,7 +16,7 @@ use engine_num::Vec3;
 use godot::{
     engine::{
         Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer, StaticBody3D,
-        StaticBody3DVirtual,
+        StaticBody3DVirtual, TileMap,
     },
     prelude::*,
 };
@@ -24,7 +25,7 @@ use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputState, Ui};
-use universe::{tilemap::TileIndex, PlayerID, Universe};
+use universe::{ecs::cmp::VesselTiles, tilemap::TileIndex, Universe};
 use util::OptionNetmanExt;
 
 mod netman;
@@ -113,22 +114,23 @@ impl Node3DVirtual for GameClass {
         };
         let mut universe = Universe::new();
         let mut evctx = universe.update_ctx().evctx();
-        universe.vessels.insert(VesselID(0), Vessel::default());
-        universe
-            .vessels
-            .get_mut(&VesselID(0))
-            .unwrap()
-            .tiles
-            .add_at(
-                &mut evctx,
-                TilePos { x: 0, y: 0, z: 0 },
-                Tile {
-                    orientation: TileOrientation::new(
-                        rotations::BuildingFacing::Ny,
-                        rotations::BuildingRotation::N,
-                    ),
-                },
-            );
+
+        let world = &mut universe.world;
+
+        let mut tile_map = universe::tilemap::TileMap::new();
+        tile_map.add_at(
+            &mut evctx,
+            TilePos { x: 0, y: 0, z: 0 },
+            Tile {
+                orientation: TileOrientation::new(
+                    rotations::BuildingFacing::Ny,
+                    rotations::BuildingRotation::N,
+                ),
+            },
+        );
+
+        let _vessel = world.spawn(VesselTiles(tile_map)).id();
+
         let universe = universe.into();
         Self {
             universe,

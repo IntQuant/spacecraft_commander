@@ -11,13 +11,17 @@ use godot::{
     prelude::*,
 };
 use tracing::{info, warn};
+use universe::ecs::{
+    cmp::{Player, VesselTiles},
+    ids::PlayerID,
+    res::PlayerMap,
+};
 
 use crate::{
     universe::{
         self,
         rotations::{self, BuildingFacing},
         tilemap::{TileOrientation, TilePos},
-        PlayerID,
     },
     util::{FromGodot, SceneTreeExt, ToGodot},
     BaseStaticBody, BodyKind,
@@ -44,13 +48,12 @@ pub fn upload_current_vessel(
         shown.queue_free()
     }
 
-    let vessel = universe
-        .vessels
-        .get(&current_vessel.0)
+    let tiles = universe
+        .get_component_for::<VesselTiles>(current_vessel.0 .0)
         .ok_or_else(|| anyhow!("given vessel does not exist"))
         .unwrap(); // TODO
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
-    for (tile_index, pos, tile) in vessel.tiles.iter() {
+    for (tile_index, pos, tile) in tiles.0.iter() {
         let mut node = wall_scene.instantiate().unwrap().cast::<BaseStaticBody>();
 
         node.bind_mut().kind = Some(crate::BodyKind::Tile {
@@ -74,10 +77,18 @@ pub fn update_players_on_vessel(
     mut root_node: NonSendMut<RootNode>,
     mut player_node_res: NonSendMut<Option<PlayerNode>>,
 ) {
-    let mut on_current_vessel: HashSet<_> = universe
-        .players
+    let player_map = universe.world().resource::<PlayerMap>();
+    let mut on_current_vessel: HashSet<_> = player_map
+        .map
         .iter()
-        .filter(|(_id, player)| player.vessel == current_vessel.0)
+        .filter(|(_id, player_id)| {
+            universe
+                .world()
+                .get_entity(**player_id)
+                .and_then(|player| player.get::<Player>())
+                .map(|player_cmp| player_cmp.vessel == current_vessel.0)
+                .unwrap_or_default()
+        })
         .map(|(id, _player)| *id)
         .collect();
 
@@ -104,7 +115,7 @@ pub fn update_players_on_vessel(
         }
         player_node.set("controlled".into(), is_me.to_variant());
         player_node.add_to_group("players".into());
-        if let Some(player_info) = universe.0.players.get(&player_id) {
+        if let Some(player_info) = universe.get_component_for_player::<Player>(player_id) {
             let position = player_info.position.to_godot();
             player_node
                 .clone()
@@ -278,7 +289,8 @@ pub fn update_player_positions(
         let mut player = player.cast::<CharacterBody3D>();
         let player_id = PlayerID(player.get("player".into()).to::<u32>());
         if current_player.0 != player_id {
-            if let Some(player_info) = universe.players.get(&player_id) {
+            let player_info = universe.get_component_for_player::<Player>(player_id);
+            if let Some(player_info) = player_info.as_ref() {
                 player.set_position(player_info.position.to_godot()); // TODO interpolate
             } else {
                 warn!("Player {:?} not found", player_id)

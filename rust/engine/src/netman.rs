@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use engine_universe::ecs::ids::PlayerID;
 use tokio::{
     net::{TcpListener, TcpStream, ToSocketAddrs},
     sync::mpsc,
@@ -13,9 +14,7 @@ use tracing::{error, info, warn};
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{
-        ui_events::UiEventCtx, OwnedUniverseEvent, PlayerID, Universe, UniverseEvent, TICK_TIME,
-    },
+    universe::{ui_events::UiEventCtx, OwnedUniverseEvent, Universe, UniverseEvent, TICK_TIME},
 };
 
 use self::{

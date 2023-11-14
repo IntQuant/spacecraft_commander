@@ -1,12 +1,11 @@
 use derive_more::{Deref, DerefMut};
+use engine_universe::ecs::ids::{PlayerID, VesselID};
 use std::sync::Arc;
 
 use bevy_ecs::system::Resource;
 use godot::{engine::CharacterBody3D, prelude::*};
 
-use crate::universe::{
-    rotations::BuildingFacing, ui_events::UiEventCtx, PlayerID, Universe, UniverseEvent, VesselID,
-};
+use crate::universe::{rotations::BuildingFacing, ui_events::UiEventCtx, Universe, UniverseEvent};
 
 #[derive(Deref, Resource)]
 pub struct UniverseResource(pub Arc<Universe>);

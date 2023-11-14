@@ -1,3 +1,4 @@
+use bevy_reflect::Reflect;
 use num_traits::{NumCast, ToPrimitive, Zero};
 use paste::paste;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,9 @@ use std::ops::*;
 /// 1. Positions have the same precision at all points.
 /// 2. Numerical ops have the same results on all platforms.
 /// 3. More bits of precision can be used when necessary (e.g. i128 for position of spacecraft in a galaxy).
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Reflect,
+)]
 pub struct Fixed<T, const P: u8>(T);
 
 impl<T: Shl<u8, Output = T>, const P: u8> Fixed<T, P> {
@@ -95,4 +98,4 @@ impl<T: ToPrimitive, const P: u8> From<Fixed<T, P>> for f32 {
     }
 }
 
-pub type Vec3 = nalgebra::Vector3<Fixed<i32, 14>>;
+pub type Vec3 = glam::Vec3;
