@@ -1,13 +1,34 @@
+use bevy_ecs::{entity::Entity, event::Events};
 use bevy_reflect::TypeRegistryArc;
+use engine_num::Vec3;
 
-use std::sync::OnceLock;
+use std::{mem, sync::OnceLock};
+
+use crate::ecs::{
+    evs::PlayerConnected,
+    ids::{PlayerID, VesselEnt},
+    player::{Player, PlayerMap},
+    vessel::{DefaultVessel, VesselTiles},
+};
 
 static TYPE_REGISTRY: OnceLock<TypeRegistryArc> = OnceLock::new();
 
 fn init_type_registry() -> TypeRegistryArc {
-    let registry = TypeRegistryArc::default();
+    let registry_arc = TypeRegistryArc::default();
+    let mut reg = registry_arc.write();
+    reg.register::<Vec3>();
+    reg.register::<Entity>();
+    reg.register::<PlayerID>();
+    reg.register::<VesselEnt>();
 
-    registry
+    reg.register::<PlayerMap>();
+    reg.register::<DefaultVessel>();
+    reg.register::<PlayerID>();
+    reg.register::<VesselEnt>();
+    reg.register::<Player>();
+    reg.register::<VesselTiles>();
+    mem::drop(reg);
+    registry_arc
 }
 
 pub fn get_type_registry() -> &'static TypeRegistryArc {

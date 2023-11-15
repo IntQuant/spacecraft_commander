@@ -1,14 +1,23 @@
-use std::time::Duration;
+use std::{mem, time::Duration};
 
-use bevy_ecs::{component::Component, entity::Entity};
+use bevy_ecs::{
+    component::Component,
+    entity::Entity,
+    event::{event_update_system, Events},
+    schedule::{IntoSystemConfigs, Schedule, SystemSet},
+    world::World,
+};
 use bevy_scene::{
     serde::{SceneDeserializer, SceneSerializer},
     DynamicScene, Scene, SceneSpawnError,
 };
 use bincode::Options;
 use ecs::{
-    ids::{PlayerID, VesselID},
+    bridge::PendingEventsRes,
+    evs::PlayerConnected,
+    ids::{PlayerID, VesselEnt},
     player::PlayerMap,
+    sys::{input_event_producer, on_player_connected},
 };
 use engine_num::Vec3;
 use serde::{Deserialize, Serialize};
@@ -63,22 +72,39 @@ pub struct ExportedUniverse {
 /// Deterministic - same sequence of events and updates(steps) should result in same state.
 pub struct Universe {
     pending_events: Vec<OwnedUniverseEvent>,
-    pub world: bevy_ecs::world::World,
+    schedule: Schedule,
+    pub world: World,
 }
 
 impl Universe {
+    fn make_schedule() -> Schedule {
+        #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+        pub struct FlushEvents;
+
+        let mut sched = Schedule::default();
+        sched.add_systems((event_update_system::<PlayerConnected>).in_set(FlushEvents));
+        sched.add_systems(
+            (input_event_producer, (on_player_connected))
+                .chain()
+                .after(FlushEvents),
+        );
+        sched
+    }
+
     pub fn new() -> Self {
-        let mut world = bevy_ecs::world::World::new();
+        let mut world = World::new();
         world.insert_resource(bevy_ecs::reflect::AppTypeRegistry(
             get_type_registry().clone(),
         ));
         world.insert_resource(PlayerMap::default());
+        world.insert_resource(Events::<PlayerConnected>::default());
         Universe {
             world,
             pending_events: Default::default(),
+            schedule: Self::make_schedule(),
         }
     }
-    pub fn world(&self) -> &bevy_ecs::world::World {
+    pub fn world(&self) -> &World {
         &self.world
     }
     pub fn get_component_for_player<T: Component>(&self, id: PlayerID) -> Option<&T> {
@@ -99,6 +125,7 @@ impl Universe {
     pub fn to_exported(&self) -> ExportedUniverse {
         info!("Exporting universe");
         let dyn_scene = DynamicScene::from_world(&self.world);
+        info!("{:?}", dyn_scene.serialize_ron(&get_type_registry()));
         let serializer = SceneSerializer::new(&dyn_scene, &get_type_registry());
         let world_state = bincode::serialize(&serializer).expect("can export universe");
         ExportedUniverse {
@@ -118,9 +145,12 @@ impl Universe {
             &dyn_scene,
             &bevy_ecs::reflect::AppTypeRegistry(get_type_registry().clone()),
         )?;
+        let mut world = scene.world;
+        world.insert_resource(Events::<PlayerConnected>::default());
         Ok(Universe {
-            world: scene.world,
+            world,
             pending_events: exported.pending_events,
+            schedule: Self::make_schedule(),
         })
     }
 }
@@ -179,6 +209,13 @@ impl UpdateCtx<'_> {
 
     pub fn step(&mut self) {
         // TODO
+        self.universe
+            .world
+            .insert_resource(PendingEventsRes(mem::take(
+                &mut self.universe.pending_events,
+            )));
+        self.universe.schedule.run(&mut self.universe.world);
+        self.universe.world.remove_resource::<PendingEventsRes>();
     }
 }
 

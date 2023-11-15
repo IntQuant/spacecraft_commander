@@ -6,7 +6,7 @@ use bevy_ecs::{
     world::World,
 };
 use godot::prelude::{Gd, Node3D};
-use universe::ecs::ids::{PlayerID, VesselID};
+use universe::ecs::ids::{PlayerID, VesselEnt};
 
 use crate::universe::{self, ui_events::UiEventCtx, Universe};
 
@@ -16,8 +16,8 @@ use self::{
         PlayerNode, RootNode, SceneTreeRes, UniverseEventStorage, UniverseResource,
     },
     systems::{
-        building_facing, building_placer, building_remover, player_controls,
-        update_player_positions, update_players_on_vessel, upload_current_vessel,
+        building_facing, building_placer, building_remover, player_controls, update_current_vessel,
+        update_player_positions, update_players_on_vessel, upload_current_vessel_tiles,
         vessel_upload_condition, PlacerLocal,
     },
 };
@@ -44,15 +44,18 @@ impl Ui {
         let mut schedule_render = Schedule::new(RenderSchedule);
 
         schedule_update.add_systems((
-            upload_current_vessel.run_if(vessel_upload_condition),
-            update_players_on_vessel,
+            update_current_vessel,
+            update_players_on_vessel.after(update_current_vessel),
+            upload_current_vessel_tiles
+                .run_if(vessel_upload_condition)
+                .after(update_current_vessel),
             player_controls,
             (building_facing, building_placer, building_remover),
         ));
 
         schedule_render.add_systems(update_player_positions);
 
-        world.insert_resource(CurrentVessel(VesselID(Entity::PLACEHOLDER)));
+        world.insert_resource(CurrentVessel(VesselEnt(Entity::PLACEHOLDER)));
         world.insert_resource(Dt(1.0 / 60.0));
         world.insert_non_send_resource(None::<PlayerNode>);
         world.insert_non_send_resource(PlacerLocal::default());

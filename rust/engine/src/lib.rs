@@ -1,6 +1,6 @@
 use crate::{
     universe::{
-        ecs::ids::{PlayerID, VesselID},
+        ecs::ids::{PlayerID, VesselEnt},
         rotations,
         tilemap::{Tile, TileOrientation, TilePos},
         Vessel,
@@ -25,7 +25,11 @@ use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputState, Ui};
-use universe::{ecs::cmp::VesselTiles, tilemap::TileIndex, Universe};
+use universe::{
+    ecs::{cmp::VesselTiles, res::DefaultVessel},
+    tilemap::TileIndex,
+    Universe,
+};
 use util::OptionNetmanExt;
 
 mod netman;
@@ -129,7 +133,8 @@ impl Node3DVirtual for GameClass {
             },
         );
 
-        let _vessel = world.spawn(VesselTiles(tile_map)).id();
+        let vessel = world.spawn(VesselTiles(tile_map)).id();
+        world.insert_resource(DefaultVessel(VesselEnt(vessel)));
 
         let universe = universe.into();
         Self {

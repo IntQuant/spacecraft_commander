@@ -3,6 +3,7 @@ use std::{collections::HashSet, f32::consts::PI};
 use anyhow::anyhow;
 use bevy_ecs::{
     change_detection::DetectChanges,
+    query::Changed,
     system::{NonSendMut, Res, ResMut},
 };
 use engine_num::Vec3;
@@ -36,7 +37,20 @@ pub fn vessel_upload_condition(current_vessel: Res<CurrentVessel>, evctx: Res<Ev
     current_vessel.is_changed() || !evctx.tiles_changed.is_empty()
 }
 
-pub fn upload_current_vessel(
+pub fn update_current_vessel(
+    current_player: Res<CurrentPlayer>,
+    mut current_vessel: ResMut<CurrentVessel>,
+    universe: Res<UniverseResource>,
+) {
+    if let Some(player) = universe.get_component_for_player::<Player>(current_player.0) {
+        if player.vessel != current_vessel.0 {
+            info!("Current vessel changed");
+            current_vessel.0 = player.vessel;
+        }
+    }
+}
+
+pub fn upload_current_vessel_tiles(
     universe: Res<UniverseResource>,
     current_vessel: Res<CurrentVessel>,
     mut scene_tree: NonSendMut<SceneTreeRes>,
@@ -48,10 +62,11 @@ pub fn upload_current_vessel(
         shown.queue_free()
     }
 
-    let tiles = universe
-        .get_component_for::<VesselTiles>(current_vessel.0 .0)
-        .ok_or_else(|| anyhow!("given vessel does not exist"))
-        .unwrap(); // TODO
+    let Some(tiles) = universe.get_component_for::<VesselTiles>(current_vessel.0 .0) else {
+        warn!("Current vessel does not exist");
+        return;
+    };
+
     let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
     for (tile_index, pos, tile) in tiles.0.iter() {
         let mut node = wall_scene.instantiate().unwrap().cast::<BaseStaticBody>();

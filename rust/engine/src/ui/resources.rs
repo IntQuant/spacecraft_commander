@@ -1,5 +1,5 @@
 use derive_more::{Deref, DerefMut};
-use engine_universe::ecs::ids::{PlayerID, VesselID};
+use engine_universe::ecs::ids::{PlayerID, VesselEnt};
 use std::sync::Arc;
 
 use bevy_ecs::system::Resource;
@@ -19,7 +19,7 @@ pub struct InputState {
 pub struct CurrentPlayer(pub PlayerID);
 
 #[derive(Deref, DerefMut, Resource)]
-pub struct CurrentVessel(pub VesselID);
+pub struct CurrentVessel(pub VesselEnt);
 
 #[derive(Deref, DerefMut)]
 pub struct RootNode(pub Gd<Node3D>);
