@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 engine_num = {path = "../engine_num"}
+engine_macro = {path = "../engine_macro"}
+engine_ecs = {path = "../engine_ecs"}
 
 indexmap = { version = "*", features = ["serde"] }
 

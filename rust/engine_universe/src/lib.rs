@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use engine_macro::gen_world;
 use engine_num::Vec3;
 use indexmap::IndexMap;
 use mcs::{
@@ -91,3 +92,9 @@ pub struct OwnedUniverseEvent {
     pub player_id: PlayerID,
     pub event: UniverseEvent,
 }
+
+struct Component1;
+struct Component2;
+struct Component3;
+
+gen_world! { Component1 Component2 Component3 }
