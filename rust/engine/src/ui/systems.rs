@@ -61,7 +61,7 @@ pub fn upload_current_vessel_tiles(
         return;
     };
 
-    let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
+    let wall_scene = load::<PackedScene>("vessel/generic/wall_generic.tscn");
     for (tile_index, pos, tile) in tiles.0.iter() {
         let mut node = wall_scene.instantiate().unwrap().cast::<BaseStaticBody>();
 
@@ -239,7 +239,7 @@ pub fn building_placer(
         b_node.set_position(place_pos_q);
         b_node.set_basis(current_facing.to_basis().to_godot());
     } else {
-        let wall_scene = load::<PackedScene>("vessel/walls/wall1.tscn");
+        let wall_scene = load::<PackedScene>("vessel/generic/wall_virtual.tscn");
         let node = wall_scene.instantiate().unwrap();
         root_node.add_child(node.clone());
         let node = node.cast::<Node3D>();

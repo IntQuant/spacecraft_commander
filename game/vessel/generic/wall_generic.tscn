@@ -9,7 +9,7 @@ size = Vector3(2, 2, 0.05)
 [sub_resource type="PrismMesh" id="PrismMesh_3scfd"]
 size = Vector3(0.5, 1, 0.1)
 
-[node name="wall1" type="BaseStaticBody"]
+[node name="wall_generic" type="BaseStaticBody"]
 collision_layer = 3
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
