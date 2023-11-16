@@ -3,18 +3,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use engine_universe::ecs::ids::PlayerID;
 use tokio::{
     net::{TcpListener, TcpStream, ToSocketAddrs},
     sync::mpsc,
     task::AbortHandle,
 };
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::{
     enter_runtime, get_runtime,
     netman::net::EndpointId,
-    universe::{ui_events::UiEventCtx, OwnedUniverseEvent, Universe, UniverseEvent, TICK_TIME},
+    universe::{
+        mcs::PlayerID, ui_events::UiEventCtx, OwnedUniverseEvent, Universe, UniverseEvent,
+        TICK_TIME,
+    },
 };
 
 use self::{
@@ -71,14 +73,7 @@ impl Client {
                 SentByServer::SetUniverse(new_universe) => {
                     self.last_step = Instant::now();
                     info!("Setting new universe...");
-                    match Universe::from_exported(new_universe) {
-                        Ok(new_universe) => {
-                            *universe = new_universe;
-                            info!("Set new universe")
-                        }
-                        Err(err) => error!("Could not set new universe: {err}"),
-                    }
-
+                    *universe = new_universe;
                     info!("Clearing queues...");
                     self.event_queue.clear();
                     self.pending_steps = 0;
@@ -133,7 +128,7 @@ impl Client {
 impl Server {
     fn process_events(&mut self, universe: &mut Universe) -> UiEventCtx {
         while let Ok(mut conn) = self.new_connections.try_recv() {
-            conn.send(SentByServer::SetUniverse(universe.to_exported()));
+            conn.send(SentByServer::SetUniverse(universe.clone()));
             let new_id = PlayerID(conn.endpoint_id().0);
             conn.send(SentByServer::IdAssigned(new_id));
             self.player_map.insert(conn.endpoint_id(), new_id); // TODO proper auth

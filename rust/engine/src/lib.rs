@@ -1,22 +1,16 @@
-use crate::{
-    universe::{
-        ecs::ids::{PlayerID, VesselEnt},
-        rotations,
-        tilemap::{Tile, TileOrientation, TilePos},
-        Vessel,
-    },
-    util::FromGodot,
+use crate::universe::{
+    rotations,
+    tilemap::{Tile, TileOrientation, TilePos},
 };
 use std::{
     ops::DerefMut,
     sync::{atomic::AtomicBool, Arc, OnceLock},
 };
 
-use engine_num::Vec3;
 use godot::{
     engine::{
         Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer, StaticBody3D,
-        StaticBody3DVirtual, TileMap,
+        StaticBody3DVirtual,
     },
     prelude::*,
 };
@@ -26,7 +20,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputState, Ui};
 use universe::{
-    ecs::{cmp::VesselTiles, res::DefaultVessel},
+    mcs::{DefaultVesselRes, VesselTiles},
     tilemap::TileIndex,
     Universe,
 };
@@ -119,8 +113,6 @@ impl Node3DVirtual for GameClass {
         let mut universe = Universe::new();
         let mut evctx = universe.update_ctx().evctx();
 
-        let world = &mut universe.world;
-
         let mut tile_map = universe::tilemap::TileMap::new();
         tile_map.add_at(
             &mut evctx,
@@ -133,8 +125,9 @@ impl Node3DVirtual for GameClass {
             },
         );
 
-        let vessel = world.spawn(VesselTiles(tile_map)).id();
-        world.insert_resource(DefaultVessel(VesselEnt(vessel)));
+        let vessel = universe.vessels.insert(VesselTiles(tile_map));
+
+        universe.default_vessel = DefaultVesselRes(vessel);
 
         let universe = universe.into();
         Self {
@@ -214,19 +207,6 @@ impl GameClass {
     #[func]
     fn frame_pre_draw(&mut self) {
         self.with_ui_ctx(|ctx| ctx.on_render());
-    }
-
-    #[func]
-    fn my_id(&self) -> u32 {
-        self.netman.get().my_id().unwrap_or(PlayerID(0)).0
-    }
-
-    #[func]
-    fn update_player_position(&mut self, pos: Vector3) {
-        let pos = Vec3::from_godot(pos);
-        self.netman
-            .get_mut()
-            .emit_event(universe::UniverseEvent::PlayerMoved { new_position: pos });
     }
 }
 

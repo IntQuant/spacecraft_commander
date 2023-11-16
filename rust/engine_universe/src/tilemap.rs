@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use bevy_reflect::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -11,7 +10,7 @@ use super::{
 
 pub type DefVec<T> = SmallVec<[T; 4]>;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Reflect)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct TileOrientation {
     pub facing: BuildingFacing,
     pub rotation: BuildingRotation,
@@ -26,12 +25,12 @@ impl TileOrientation {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Reflect)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tile {
     pub orientation: TileOrientation,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy, Reflect)]
+#[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct TilePos {
     pub x: i32,
     pub y: i32,
@@ -44,7 +43,7 @@ impl TilePos {
 
 pub type TileIndex = u8;
 
-#[derive(Default, Serialize, Deserialize, Clone, Reflect)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct TileMap<T> {
     tiles: HashMap<TilePos, DefVec<T>>,
 }

@@ -10,6 +10,5 @@ num-traits = {version = "0.2.16"}
 paste = "1.0.14"
 nalgebra = { version = "0.32.3", features = ["serde-serialize"] }
 serde = { version = "1.0.159", features = ["derive"] }
-bevy_reflect = { version = "0.12.0", features = ["smallvec"] }
 derive_more = "0.99.17"
 glam = { version = "0.24.2", features = ["libm", "serde"] }
