@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 slotmapd = { version = "1.0.10", features = ["serde"] }
+smallvec = { version = "1.11.2", features = ["serde"] }
