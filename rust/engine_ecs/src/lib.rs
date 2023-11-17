@@ -212,6 +212,20 @@ impl<Storage: DynDispath + Default> World<Storage> {
         self.storage.storage().get(storage_id, info.in_archetype_id)
     }
 
+    pub fn get_mut<C>(&mut self, entity: EntityID) -> Option<&mut C>
+    where
+        Storage: ComponentStorageProvider<C>,
+        C: Component<Storage>,
+    {
+        let info = self.entities.get(entity)?;
+        let storage_id = self
+            .archeman
+            .find_storage::<Storage, C>(info.archetype_id)?;
+        self.storage
+            .storage_mut()
+            .get_mut(storage_id, info.in_archetype_id)
+    }
+
     fn add_bundle_to_archetype<T>(&mut self, archetype: ArchetypeID, component: T)
     where
         Storage: ComponentStorageProvider<T>,

@@ -37,4 +37,13 @@ mod tests {
         assert_eq!(world.get::<Component2>(ent3), Some(Component2(4)).as_ref());
         assert_eq!(world.get::<Component3>(ent3), Some(Component3(5)).as_ref());
     }
+
+    #[test]
+    fn entity_spawn_and_get_mut() {
+        let mut world = World::<ComponentStorage>::new();
+        let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
+        assert_eq!(world.get::<Component1>(ent1), Some(Component1(0)).as_ref());
+        world.get_mut::<Component1>(ent1).unwrap().0 = 10;
+        assert_eq!(world.get::<Component1>(ent1), Some(Component1(10)).as_ref());
+    }
 }
