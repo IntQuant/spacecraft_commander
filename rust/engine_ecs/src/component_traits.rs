@@ -1,7 +1,9 @@
 use super::internal::ComponentStorageProvider;
 use super::ArchetypeID;
 use super::LocalTypeIndex;
+use crate::internal::DynDispath;
 use crate::TypeIndex;
+use crate::World;
 use smallvec::SmallVec;
 use std::marker::PhantomData;
 
@@ -18,7 +20,7 @@ pub(crate) type TypeIndexStorage = SmallVec<[TypeIndex; 8]>;
 
 pub trait BundleTrait<Storage> {
     fn type_ids() -> TypeIndexStorage;
-    fn add_to_archetype_in_storage(self, storage: &mut Storage, archetype: ArchetypeID);
+    fn add_to_archetype_in_storage(self, world: &mut World<Storage>, archetype: ArchetypeID);
 }
 
 impl<Storage> BundleTrait<Storage> for () {
@@ -26,22 +28,22 @@ impl<Storage> BundleTrait<Storage> for () {
         TypeIndexStorage::new()
     }
 
-    fn add_to_archetype_in_storage(self, _storage: &mut Storage, _archetype: ArchetypeID) {}
+    fn add_to_archetype_in_storage(self, world: &mut World<Storage>, archetype: ArchetypeID) {}
 }
 
 pub struct Bundle<B0, B1, Storage>(pub B0, pub B1, pub PhantomData<fn() -> Storage>);
 
 impl<Storage, T> BundleTrait<Storage> for T
 where
-    Storage: ComponentStorageProvider<T>,
+    Storage: ComponentStorageProvider<T> + Default + Clone + DynDispath,
     T: Into<Bundle<T, (), Storage>> + LocalTypeIndex<Storage>,
 {
     fn type_ids() -> TypeIndexStorage {
         TypeIndexStorage::from_elem(T::TYPE_INDEX, 1)
     }
 
-    fn add_to_archetype_in_storage(self, storage: &mut Storage, archetype: ArchetypeID) {
-        storage.storage_mut().add_to_archetype(archetype, self)
+    fn add_to_archetype_in_storage(self, world: &mut World<Storage>, archetype: ArchetypeID) {
+        world.add_bundle_to_archetype(archetype, self)
     }
 }
 
@@ -56,9 +58,9 @@ where
         indexes
     }
 
-    fn add_to_archetype_in_storage(self, storage: &mut Storage, archetype: ArchetypeID) {
-        self.0.add_to_archetype_in_storage(storage, archetype);
-        self.1.add_to_archetype_in_storage(storage, archetype);
+    fn add_to_archetype_in_storage(self, world: &mut World<Storage>, archetype: ArchetypeID) {
+        self.0.add_to_archetype_in_storage(world, archetype);
+        self.1.add_to_archetype_in_storage(world, archetype);
     }
 }
 

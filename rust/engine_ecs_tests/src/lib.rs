@@ -4,19 +4,37 @@ mod tests {
     use engine_macro::gen_storage_for_world;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Default, Clone, Serialize, Deserialize)]
-    struct Component1;
-    #[derive(Default, Clone, Serialize, Deserialize)]
-    struct Component2;
-    #[derive(Default, Clone, Serialize, Deserialize)]
-    struct Component3;
+    #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+    struct Component1(u8);
+    #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+    struct Component2(u32);
+    #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+    struct Component3(u16);
 
     gen_storage_for_world! { Component1 Component2 Component3 }
 
     #[test]
     fn entity_spawned() {
         let mut world = World::<ComponentStorage>::new();
-        //let bundle: Bundle<_, _, ComponentStorage> = (Component1, Component2).into();
-        world.spawn((Component1, Component2, Component3));
+        world.spawn((Component1(0), Component2(1), Component3(2)));
+        world.spawn((Component1(3), Component2(4), Component3(5)));
+        world.spawn((Component1(6), Component2(7)));
+        assert_eq!(world.entity_count(), 3)
+    }
+
+    #[test]
+    fn entity_spawn_and_get() {
+        let mut world = World::<ComponentStorage>::new();
+        let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent2 = world.spawn((Component2(7),));
+        let ent3 = world.spawn((Component1(3), Component2(4), Component3(5)));
+
+        assert_eq!(world.get::<Component1>(ent1), Some(Component1(0)).as_ref());
+        assert_eq!(world.get::<Component2>(ent1), Some(Component2(1)).as_ref());
+        assert_eq!(world.get::<Component3>(ent1), Some(Component3(2)).as_ref());
+        assert_eq!(world.get::<Component2>(ent2), Some(Component2(7)).as_ref());
+        assert_eq!(world.get::<Component1>(ent3), Some(Component1(3)).as_ref());
+        assert_eq!(world.get::<Component2>(ent3), Some(Component2(4)).as_ref());
+        assert_eq!(world.get::<Component3>(ent3), Some(Component3(5)).as_ref());
     }
 }

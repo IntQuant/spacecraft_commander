@@ -28,7 +28,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let counter = iter::successors(Some(0u32), |x| Some(x + 1));
 
     quote!(
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         #[derive(Serialize, Deserialize)]
         pub struct ComponentStorage {
             #( #component_storages ),*
@@ -39,6 +39,9 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
             }
 
             impl ::engine_ecs::internal::ComponentStorageProvider<#component_types> for ComponentStorage {
+                fn storage(&self) -> & ::engine_ecs::internal::ComponentList<#component_types> {
+                    & self.#component_storage_names
+                }
                 fn storage_mut(&mut self) -> &mut ::engine_ecs::internal::ComponentList<#component_types> {
                     &mut self.#component_storage_names
                 }
@@ -65,7 +68,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         #(
             impl From<#component_types> for ::engine_ecs::Bundle<#component_types, (), ComponentStorage> {
                 fn from(value: #component_types) -> Self {
-                    Self(#component_types, (), ::std::marker::PhantomData)
+                    Self(value, (), ::std::marker::PhantomData)
                 }
             }
         )*

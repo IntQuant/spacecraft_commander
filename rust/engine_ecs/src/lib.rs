@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
-use internal::DynDispath;
+use internal::{ComponentStorageProvider, DynDispath};
 use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
 
 pub mod internal {
     use serde::{Deserialize, Serialize};
 
-    use crate::{ArchetypeID, StorageID, TypeIndex};
+    use crate::{ArchetypeID, InArchetypeId, StorageID, TypeIndex};
 
     pub trait ComponentStorageProvider<T> {
+        fn storage(&self) -> &ComponentList<T>;
         fn storage_mut(&mut self) -> &mut ComponentList<T>;
     }
 
@@ -29,8 +30,18 @@ pub mod internal {
     }
 
     impl<T> ComponentList<T> {
-        pub(crate) fn add_to_archetype(&mut self, archetype: ArchetypeID, component: T) {
-            self.list[archetype.0 as usize].push(component)
+        pub(crate) fn add_to_storage(&mut self, storage: StorageID, component: T) {
+            self.list[storage.0 as usize].push(component)
+        }
+        pub(crate) fn get(&self, storage: StorageID, index_in_arche: InArchetypeId) -> Option<&T> {
+            self.list[storage.0 as usize].get(index_in_arche as usize)
+        }
+        pub(crate) fn get_mut(
+            &mut self,
+            storage: StorageID,
+            index_in_arche: InArchetypeId,
+        ) -> Option<&mut T> {
+            self.list[storage.0 as usize].get_mut(index_in_arche as usize)
         }
     }
 
@@ -102,6 +113,18 @@ impl ArchetypeManager {
     fn find_archetype(&self, components: &[TypeIndex]) -> Option<ArchetypeID> {
         self.archetype_map.get(components).copied()
     }
+    fn find_storage<Storage, C: Component<Storage>>(
+        &self,
+        archetype: ArchetypeID,
+    ) -> Option<StorageID> {
+        let index = C::TYPE_INDEX;
+        let arche_info = self.archetypes.get(archetype.0 as usize)?;
+        arche_info
+            .component_slots
+            .iter()
+            .find(|(current_comp_index, storage_id)| *current_comp_index == index)
+            .map(|x| x.1)
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -157,18 +180,49 @@ impl<Storage: DynDispath + Default> World<Storage> {
         let mut components = B::type_ids();
         components.sort();
         let archetype = self.find_or_create_archetype(components.as_slice());
-        bundle.add_to_archetype_in_storage(&mut self.storage, archetype);
+        bundle.add_to_archetype_in_storage(self, archetype);
         self.entities.insert_with_key(|entity| EntityInfo {
             archetype_id: archetype,
             in_archetype_id: self.archeman.register_entity(archetype, entity),
         })
     }
 
+    /// Spawn an entity with this bundle of components.
     pub fn spawn<B0, B1>(&mut self, bundle: impl Into<Bundle<B0, B1, Storage>>) -> EntityID
     where
         Bundle<B0, B1, Storage>: BundleTrait<Storage>,
     {
         let bundle = bundle.into();
         self._spawn(bundle)
+    }
+
+    pub fn entity_count(&self) -> u32 {
+        self.entities.len() as u32
+    }
+
+    pub fn get<C>(&self, entity: EntityID) -> Option<&C>
+    where
+        Storage: ComponentStorageProvider<C>,
+        C: Component<Storage>,
+    {
+        let info = self.entities.get(entity)?;
+        let storage_id = self
+            .archeman
+            .find_storage::<Storage, C>(info.archetype_id)?;
+        self.storage.storage().get(storage_id, info.in_archetype_id)
+    }
+
+    fn add_bundle_to_archetype<T>(&mut self, archetype: ArchetypeID, component: T)
+    where
+        Storage: ComponentStorageProvider<T>,
+        T: Into<Bundle<T, (), Storage>> + LocalTypeIndex<Storage>,
+    {
+        let storage = self
+            .archeman
+            .find_storage::<Storage, T>(archetype)
+            .expect("Required archetype exists");
+        self.storage
+            .storage_mut()
+            .add_to_storage(storage, component)
     }
 }
