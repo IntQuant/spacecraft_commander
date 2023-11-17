@@ -29,6 +29,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
 
     quote!(
         #[derive(Default)]
+        #[derive(Serialize, Deserialize)]
         pub struct ComponentStorage {
             #( #component_storages ),*
         }
@@ -45,7 +46,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         )*
 
         impl ::engine_ecs::internal::DynDispath for ComponentStorage {
-            fn dispath_mut<F, Ret, T>(&mut self, index: ::engine_ecs::TypeIndex, f: F) -> Ret
+            fn dispath_mut<F, Ret>(&mut self, index: ::engine_ecs::TypeIndex, f: F) -> Ret
             where
                 F: FnOnce(&mut dyn ::engine_ecs::internal::DynComponentList) -> Ret
             {

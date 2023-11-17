@@ -1,0 +1,12 @@
+[package]
+name = "engine_ecs_tests"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+engine_macro = {path = "../engine_macro"}
+engine_ecs = {path = "../engine_ecs"}
+
+serde = { version = "1.0.159", features = ["derive"] }

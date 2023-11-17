@@ -93,18 +93,3 @@ pub struct OwnedUniverseEvent {
     pub player_id: PlayerID,
     pub event: UniverseEvent,
 }
-
-#[derive(Default)]
-struct Component1;
-#[derive(Default)]
-struct Component2;
-#[derive(Default)]
-struct Component3;
-
-gen_storage_for_world! { Component1 Component2 Component3 }
-
-fn test() {
-    let mut world = World::<ComponentStorage>::new();
-    //let bundle: Bundle<_, _, ComponentStorage> = (Component1, Component2).into();
-    world.spawn((Component1, Component2, Component3))
-}
