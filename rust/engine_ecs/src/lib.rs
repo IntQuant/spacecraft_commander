@@ -18,6 +18,7 @@ pub mod internal {
 
     pub trait DynComponentList {}
 
+    #[derive(Default)]
     pub struct ComponentList<T> {
         list: Vec<Vec<T>>,
     }
@@ -32,6 +33,8 @@ pub mod internal {
 }
 
 mod component_traits;
+
+pub use crate::component_traits::{Bundle, BundleTrait, Component};
 
 new_key_type! { pub struct EntityID; }
 
@@ -68,11 +71,29 @@ pub struct World<Storage> {
     storage: Storage,
 }
 
-impl<Storage: DynDispath> World<Storage> {
+impl<Storage: DynDispath + Default> World<Storage> {
+    pub fn new() -> Self {
+        Self {
+            entities: Default::default(),
+            archetypes: Default::default(),
+            archetype_map: Default::default(),
+            storage: Default::default(),
+        }
+    }
+
     fn create_archetype(&mut self, components: &[TypeIndex]) -> ArchetypeID {
         todo!()
     }
     fn get_or_create_archetype(&mut self, components: &[TypeIndex]) -> ArchetypeID {
+        todo!()
+    }
+    pub fn spawn<B0, B1>(&mut self, bundle: impl Into<Bundle<B0, B1, Storage>>)
+    where
+        Bundle<B0, B1, Storage>: BundleTrait<Storage>,
+    {
+        let bundle = bundle.into();
+
+        //bundle.add_to_archetype_in_storage(self, _storage, _archetype);
         todo!()
     }
 }

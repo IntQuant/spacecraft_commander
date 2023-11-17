@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use engine_ecs::{Bundle, World};
 use engine_macro::gen_storage_for_world;
 use engine_num::Vec3;
 use indexmap::IndexMap;
@@ -93,8 +94,17 @@ pub struct OwnedUniverseEvent {
     pub event: UniverseEvent,
 }
 
+#[derive(Default)]
 struct Component1;
+#[derive(Default)]
 struct Component2;
+#[derive(Default)]
 struct Component3;
 
 gen_storage_for_world! { Component1 Component2 Component3 }
+
+fn test() {
+    let mut world = World::<ComponentStorage>::new();
+    //let bundle: Bundle<_, _, ComponentStorage> = (Component1, Component2).into();
+    world.spawn((Component1, Component2, Component3))
+}

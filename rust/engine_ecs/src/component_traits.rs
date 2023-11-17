@@ -1,14 +1,9 @@
-use std::marker::PhantomData;
-
-use super::ArchetypeID;
-
-use crate::TypeIndex;
-
-use smallvec::SmallVec;
-
 use super::internal::ComponentStorageProvider;
-
+use super::ArchetypeID;
 use super::LocalTypeIndex;
+use crate::TypeIndex;
+use smallvec::SmallVec;
+use std::marker::PhantomData;
 
 pub trait Component<Storage>: LocalTypeIndex<Storage> {}
 
@@ -34,7 +29,7 @@ impl<Storage> BundleTrait<Storage> for () {
     fn add_to_archetype_in_storage(self, _storage: &mut Storage, _archetype: ArchetypeID) {}
 }
 
-pub(crate) struct Bundle<B0, B1, Storage>(B0, B1, PhantomData<fn() -> Storage>);
+pub struct Bundle<B0, B1, Storage>(pub B0, pub B1, pub PhantomData<fn() -> Storage>);
 
 impl<Storage, T> BundleTrait<Storage> for T
 where
@@ -50,8 +45,10 @@ where
     }
 }
 
-impl<Storage, B0: BundleTrait<Storage>, B1: BundleTrait<Storage>> BundleTrait<Storage>
-    for Bundle<B0, B1, Storage>
+impl<Storage, B0, B1> BundleTrait<Storage> for Bundle<B0, B1, Storage>
+where
+    B0: BundleTrait<Storage>,
+    B1: BundleTrait<Storage>,
 {
     fn type_ids() -> TypeIndexStorage {
         let mut indexes = B0::type_ids();
@@ -65,22 +62,30 @@ impl<Storage, B0: BundleTrait<Storage>, B1: BundleTrait<Storage>> BundleTrait<St
     }
 }
 
-impl<Storage, B0: BundleTrait<Storage>> From<(B0,)> for Bundle<B0, (), Storage> {
+impl<Storage, B0> From<(B0,)> for Bundle<B0, (), Storage>
+where
+    B0: BundleTrait<Storage>,
+{
     fn from(value: (B0,)) -> Self {
         Bundle(value.0, (), PhantomData)
     }
 }
 
-impl<Storage, B0: BundleTrait<Storage>, B1: BundleTrait<Storage>> From<(B0, B1)>
-    for Bundle<B0, B1, Storage>
+impl<Storage, B0, B1> From<(B0, B1)> for Bundle<B0, B1, Storage>
+where
+    B0: BundleTrait<Storage>,
+    B1: BundleTrait<Storage>,
 {
     fn from(value: (B0, B1)) -> Self {
         Bundle(value.0, value.1, PhantomData)
     }
 }
 
-impl<Storage, B0: BundleTrait<Storage>, B1: BundleTrait<Storage>, B2: BundleTrait<Storage>>
-    From<(B0, B1, B2)> for Bundle<Bundle<B0, B1, Storage>, B2, Storage>
+impl<Storage, B0, B1, B2> From<(B0, B1, B2)> for Bundle<Bundle<B0, B1, Storage>, B2, Storage>
+where
+    B0: BundleTrait<Storage>,
+    B1: BundleTrait<Storage>,
+    B2: BundleTrait<Storage>,
 {
     fn from(value: (B0, B1, B2)) -> Self {
         Bundle(Bundle(value.0, value.1, PhantomData), value.2, PhantomData)
