@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn roundtrip_bincode() {
         let mut world_ini = World::<ComponentStorage>::new();
-        let ent1 = world_ini.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent1 = world_ini.spawn((Component1(0), (Component2(1), Component3(2))));
         let ent2 = world_ini.spawn((Component2(7),));
         let ent3 = world_ini.spawn((Component1(3), Component2(4), Component3(5)));
 

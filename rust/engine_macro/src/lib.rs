@@ -26,6 +26,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         .map(|(c_name, c_storage)| quote!(#c_storage : ::engine_ecs::internal::ComponentList<#c_name>));
 
     let counter = iter::successors(Some(0u32), |x| Some(x + 1));
+    let counter2 = iter::successors(Some(0u32), |x| Some(x + 1));
 
     quote!(
         #[derive(Default, Clone)]
@@ -66,12 +67,56 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         }
 
         #(
-            impl From<#component_types> for ::engine_ecs::Bundle<#component_types, (), ComponentStorage> {
-                fn from(value: #component_types) -> Self {
-                    Self(value, (), ::std::marker::PhantomData)
+            impl ::engine_ecs::Bundle<ComponentStorage> for #component_types {
+                fn type_ids() -> ::engine_ecs::internal::TypeIndexStorage {
+                    ::engine_ecs::internal::TypeIndexStorage::from_elem(#counter2, 1)
+                }
+
+                fn add_to_archetype_in_storage(self, world: &mut World<ComponentStorage>, archetype: ::engine_ecs::ArchetypeID) {
+                    world.add_bundle_to_archetype(archetype, self)
                 }
             }
         )*
+    )
+    .into()
+}
+
+/// Internal use
+#[proc_macro]
+pub fn gen_bundle_tuple_impls(input: TokenStream) -> TokenStream {
+    let count = input
+        .into_iter()
+        .next()
+        .unwrap()
+        .to_string()
+        .parse::<usize>()
+        .unwrap();
+
+    let type_names = (0..count)
+        .map(|x| format_ident!("B{x}"))
+        .collect::<Vec<_>>();
+    let type_names_from_1 = type_names.iter().skip(1);
+    let counter = (0..count).map(syn::Index::from);
+
+    quote!(
+        impl<Storage, #(#type_names,)*> Bundle<Storage> for (#(#type_names,)*)
+        where
+            #(#type_names: Bundle<Storage>),*
+        {
+            fn type_ids() -> TypeIndexStorage {
+                let mut indexes = B0::type_ids();
+                #(indexes.extend_from_slice(& #type_names_from_1 ::type_ids());)*
+                indexes
+            }
+
+            fn add_to_archetype_in_storage(
+                self,
+                world: &mut World<Storage>,
+                archetype: ArchetypeID,
+            ) {
+                #(self.#counter.add_to_archetype_in_storage(world, archetype);)*
+            }
+        }
     )
     .into()
 }
