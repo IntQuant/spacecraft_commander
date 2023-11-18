@@ -28,7 +28,7 @@ impl<Storage> BundleTrait<Storage> for () {
         TypeIndexStorage::new()
     }
 
-    fn add_to_archetype_in_storage(self, world: &mut World<Storage>, archetype: ArchetypeID) {}
+    fn add_to_archetype_in_storage(self, _world: &mut World<Storage>, _archetype: ArchetypeID) {}
 }
 
 pub struct Bundle<B0, B1, Storage>(pub B0, pub B1, pub PhantomData<fn() -> Storage>);

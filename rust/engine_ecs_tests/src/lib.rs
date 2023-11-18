@@ -46,4 +46,18 @@ mod tests {
         world.get_mut::<Component1>(ent1).unwrap().0 = 10;
         assert_eq!(world.get::<Component1>(ent1), Some(Component1(10)).as_ref());
     }
+
+    #[test]
+    fn entity_spawn_and_despawn() {
+        let mut world = World::<ComponentStorage>::new();
+        let ent1 = world.spawn(Component1(0));
+        let ent2 = world.spawn(Component1(2));
+        assert_eq!(world.get::<Component1>(ent1), Some(Component1(0)).as_ref());
+        assert_eq!(world.get::<Component1>(ent2), Some(Component1(2)).as_ref());
+        assert_eq!(world.entity_count(), 2);
+        world.despawn(ent1);
+        assert_eq!(world.entity_count(), 1);
+        assert_eq!(world.get::<Component1>(ent1), None);
+        assert_eq!(world.get::<Component1>(ent2), Some(Component1(2)).as_ref());
+    }
 }

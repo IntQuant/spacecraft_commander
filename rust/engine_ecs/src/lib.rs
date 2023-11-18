@@ -15,13 +15,14 @@ pub mod internal {
     }
 
     pub trait DynDispath {
-        fn dispath_mut<F, Ret>(&mut self, index: TypeIndex, f: F) -> Ret
+        fn dispath_mut<F, Ret>(&mut self, type_index: TypeIndex, f: F) -> Ret
         where
             F: FnOnce(&mut dyn DynComponentList) -> Ret;
     }
 
     pub trait DynComponentList {
         fn allocate(&mut self) -> StorageID;
+        fn swap_remove(&mut self, storage: StorageID, index: InArchetypeId);
     }
 
     #[derive(Default, Clone, Serialize, Deserialize)]
@@ -56,6 +57,9 @@ pub mod internal {
             self.list.push(Vec::new());
             ret
         }
+        fn swap_remove(&mut self, storage: StorageID, index: InArchetypeId) {
+            self.list[storage.0 as usize].swap_remove(index as usize);
+        }
     }
 }
 
@@ -81,7 +85,7 @@ pub trait LocalTypeIndex<T> {
 
 type InArchetypeId = u32;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 struct EntityInfo {
     pub archetype_id: ArchetypeID,
     pub in_archetype_id: InArchetypeId,
@@ -176,6 +180,27 @@ impl<Storage: DynDispath + Default> World<Storage> {
             .unwrap_or_else(|| self.create_archetype(components))
     }
 
+    fn remove_from_archetype(&mut self, ent_info: EntityInfo) {
+        let arche_info = &mut self.archeman.archetypes[ent_info.archetype_id.0 as usize];
+
+        let last_entity = arche_info.entities.len() - 1;
+        let last_entity_id = arche_info.entities[last_entity];
+        self.entities
+            .get_mut(last_entity_id)
+            .expect("should exist")
+            .in_archetype_id = ent_info.in_archetype_id;
+
+        arche_info
+            .entities
+            .swap_remove(ent_info.in_archetype_id as usize);
+
+        for (type_index, storage_id) in arche_info.component_slots.iter() {
+            self.storage.dispath_mut(*type_index, |list| {
+                list.swap_remove(*storage_id, ent_info.in_archetype_id)
+            });
+        }
+    }
+
     fn _spawn<B: BundleTrait<Storage>>(&mut self, bundle: B) -> EntityID {
         let mut components = B::type_ids();
         components.sort();
@@ -198,6 +223,17 @@ impl<Storage: DynDispath + Default> World<Storage> {
 
     pub fn entity_count(&self) -> u32 {
         self.entities.len() as u32
+    }
+
+    fn _despawn(&mut self, entity: EntityID) -> Option<()> {
+        let ent_info = self.entities.get(entity)?;
+        self.remove_from_archetype(*ent_info);
+        self.entities.remove(entity);
+        Some(())
+    }
+
+    pub fn despawn(&mut self, entity: EntityID) -> bool {
+        self._despawn(entity).is_some()
     }
 
     pub fn get<C>(&self, entity: EntityID) -> Option<&C>
