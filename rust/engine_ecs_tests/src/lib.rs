@@ -96,4 +96,44 @@ mod tests {
             Some(Component1(2)).as_ref()
         );
     }
+
+    #[test]
+    fn roundtrip_bincode() {
+        let mut world_ini = World::<ComponentStorage>::new();
+        let ent1 = world_ini.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent2 = world_ini.spawn((Component2(7),));
+        let ent3 = world_ini.spawn((Component1(3), Component2(4), Component3(5)));
+
+        let world: World<ComponentStorage> =
+            bincode::deserialize(&bincode::serialize(&world_ini).unwrap()).unwrap();
+
+        assert_eq!(
+            world.get::<Component1>(ent1).as_deref(),
+            Some(Component1(0)).as_ref()
+        );
+        assert_eq!(
+            world.get::<Component2>(ent1).as_deref(),
+            Some(Component2(1)).as_ref()
+        );
+        assert_eq!(
+            world.get::<Component3>(ent1).as_deref(),
+            Some(Component3(2)).as_ref()
+        );
+        assert_eq!(
+            world.get::<Component2>(ent2).as_deref(),
+            Some(Component2(7)).as_ref()
+        );
+        assert_eq!(
+            world.get::<Component1>(ent3).as_deref(),
+            Some(Component1(3)).as_ref()
+        );
+        assert_eq!(
+            world.get::<Component2>(ent3).as_deref(),
+            Some(Component2(4)).as_ref()
+        );
+        assert_eq!(
+            world.get::<Component3>(ent3).as_deref(),
+            Some(Component3(5)).as_ref()
+        )
+    }
 }

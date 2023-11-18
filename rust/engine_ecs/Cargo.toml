@@ -9,4 +9,3 @@ edition = "2021"
 slotmapd = { version = "1.0.10", features = ["serde"] }
 smallvec = { version = "1.11.2", features = ["serde"] }
 serde = {version = "1.0.192", features = ["derive"]}
-atomic_refcell = { version = "0.1.13", features = ["serde"] }

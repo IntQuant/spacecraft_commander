@@ -10,3 +10,4 @@ engine_macro = {path = "../engine_macro"}
 engine_ecs = {path = "../engine_ecs"}
 
 serde = { version = "1.0.159", features = ["derive"] }
+bincode = "*"

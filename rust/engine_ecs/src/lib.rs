@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
-use atomic_refcell::{AtomicRef, AtomicRefMut};
 use internal::{ComponentStorageProvider, DynDispath};
 use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
 
 pub mod internal {
-    use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
     use serde::{Deserialize, Serialize};
 
-    use crate::{ArchetypeID, InArchetypeId, StorageID, TypeIndex};
+    use crate::{ecs_cell::EcsCell, InArchetypeId, StorageID, TypeIndex};
 
     pub trait ComponentStorageProvider<T> {
         fn storage(&self) -> &ComponentList<T>;
@@ -29,28 +27,26 @@ pub mod internal {
 
     #[derive(Default, Clone, Serialize, Deserialize)]
     pub struct ComponentList<T> {
-        list: Vec<AtomicRefCell<Vec<T>>>,
+        list: Vec<EcsCell<Vec<T>>>,
     }
 
     impl<T> ComponentList<T> {
         pub(crate) fn add_to_storage(&mut self, storage: StorageID, component: T) {
             self.list[storage.0 as usize].get_mut().push(component)
         }
-        pub(crate) fn get(
-            &self,
-            storage: StorageID,
-            index_in_arche: InArchetypeId,
-        ) -> Option<AtomicRef<T>> {
-            let arche_storage = self.list[storage.0 as usize].borrow();
-            AtomicRef::filter_map(arche_storage, |s| s.get(index_in_arche as usize))
+        pub(crate) fn get(&self, storage: StorageID, index_in_arche: InArchetypeId) -> Option<&T> {
+            self.list[storage.0 as usize]
+                .get()
+                .get(index_in_arche as usize)
         }
         pub(crate) fn get_mut(
-            &self,
+            &mut self,
             storage: StorageID,
             index_in_arche: InArchetypeId,
-        ) -> Option<AtomicRefMut<T>> {
-            let arche_storage = self.list[storage.0 as usize].borrow_mut();
-            AtomicRefMut::filter_map(arche_storage, |s| s.get_mut(index_in_arche as usize))
+        ) -> Option<&mut T> {
+            self.list[storage.0 as usize]
+                .get_mut()
+                .get_mut(index_in_arche as usize)
         }
     }
 
@@ -62,7 +58,7 @@ pub mod internal {
                     .try_into()
                     .expect("Less archetypes use this component than IDs available"),
             );
-            self.list.push(Vec::new().into());
+            self.list.push(EcsCell::new(Vec::new()));
             ret
         }
         fn swap_remove(&mut self, storage: StorageID, index: InArchetypeId) {
@@ -72,6 +68,8 @@ pub mod internal {
         }
     }
 }
+
+mod ecs_cell;
 
 mod component_traits;
 
@@ -246,7 +244,7 @@ impl<Storage: DynDispath + Default> World<Storage> {
         self._despawn(entity).is_some()
     }
 
-    pub fn get<C>(&self, entity: EntityID) -> Option<AtomicRef<C>>
+    pub fn get<C>(&self, entity: EntityID) -> Option<&C>
     where
         Storage: ComponentStorageProvider<C>,
         C: Component<Storage>,
@@ -258,7 +256,7 @@ impl<Storage: DynDispath + Default> World<Storage> {
         self.storage.storage().get(storage_id, info.in_archetype_id)
     }
 
-    pub fn get_mut<C>(&mut self, entity: EntityID) -> Option<AtomicRefMut<C>>
+    pub fn get_mut<C>(&mut self, entity: EntityID) -> Option<&mut C>
     where
         Storage: ComponentStorageProvider<C>,
         C: Component<Storage>,
