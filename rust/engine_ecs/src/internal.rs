@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{ecs_cell::EcsCell, InArchetypeId, StorageID, TypeIndex};
 
 pub use crate::component_traits::TypeIndexStorage;
+pub use crate::query::ComponentRequests;
 
 pub trait ComponentStorageProvider<T> {
     fn storage(&self) -> &ComponentList<T>;
