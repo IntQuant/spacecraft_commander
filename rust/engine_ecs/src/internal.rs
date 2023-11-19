@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ecs_cell::EcsCell, InArchetypeId, StorageID, TypeIndex};
+use crate::{ecs_cell::EcsCell, StorageID, TypeIndex};
 
 pub use crate::component_traits::TypeIndexStorage;
-pub use crate::query::ComponentRequests;
+pub use crate::query::{ComponentRequests, QueryParameter};
+pub use crate::InArchetypeId;
 
 pub trait ComponentStorageProvider<T> {
     fn storage(&self) -> &ComponentList<T>;
@@ -43,6 +44,17 @@ impl<T> ComponentList<T> {
         self.list[storage.0 as usize]
             .get_mut()
             .get_mut(index_in_arche as usize)
+    }
+    pub(crate) unsafe fn get_mut_unsafe(
+        &self,
+        storage: StorageID,
+        index_in_arche: InArchetypeId,
+    ) -> Option<&mut T> {
+        unsafe {
+            self.list[storage.0 as usize]
+                .get_mut_unsafe()
+                .get_mut(index_in_arche as usize)
+        }
     }
 }
 

@@ -28,7 +28,7 @@ pub trait LocalTypeIndex<T> {
     const TYPE_INDEX: TypeIndex;
 }
 
-type InArchetypeId = u32;
+pub type InArchetypeId = u32;
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 struct EntityInfo {
@@ -218,4 +218,38 @@ impl<Storage: DynDispath + Default> World<Storage> {
 
 pub struct QueryWorld<'a, Storage> {
     inner: &'a mut World<Storage>,
+}
+
+impl<'a, Storage> QueryWorld<'a, Storage> {
+    /// SAFETY: aliasing rules have to be upheld per StorageID and component type.
+    pub unsafe fn get<T: Component<Storage>>(
+        &self,
+        storage: StorageID,
+        index_in_arche: InArchetypeId,
+    ) -> Option<&T>
+    where
+        Storage: ComponentStorageProvider<T>,
+    {
+        self.inner.storage.storage().get(storage, index_in_arche)
+    }
+    /// SAFETY: see `get` method.
+    pub unsafe fn get_mut<T>(
+        &self,
+        storage: StorageID,
+        index_in_arche: InArchetypeId,
+    ) -> Option<&mut T>
+    where
+        Storage: ComponentStorageProvider<T>,
+    {
+        self.inner
+            .storage
+            .storage()
+            .get_mut_unsafe(storage, index_in_arche)
+    }
+    pub fn storage_for_archetype<T: Component<Storage>>(
+        &self,
+        archetype: ArchetypeID,
+    ) -> Option<StorageID> {
+        self.inner.archeman.find_storage::<Storage, T>(archetype)
+    }
 }

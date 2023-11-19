@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use engine_macro::gen_query_param_tuple_impls;
 use smallvec::{Array, SmallVec};
 
 use crate::{ArchetypeID, InArchetypeId, QueryWorld, TypeIndex};
@@ -8,7 +9,7 @@ pub trait SystemParameter<Storage> {
     fn from_world<'a>(world: &QueryWorld<'a, Storage>) -> Self;
 }
 
-pub struct Query<'a, T: QueryParameter<Storage>, Storage> {
+pub struct Query<'a, T: QueryParameter<'a, Storage>, Storage> {
     world: &'a QueryWorld<'a, Storage>,
     _phantom: PhantomData<T>,
 }
@@ -96,33 +97,57 @@ impl ComponentRequests {
     }
 
     /// Returns true if both requests need access to a component and at least one of requests needs exclusive access.
-    pub fn conflics_with(&self, other: &Self) -> bool {
-        todo!()
+    pub fn conflicts_with(&self, other: &Self) -> bool {
+        let mut other_index = 0;
+        if other.requests.len() == 0 {
+            return false;
+        }
+        for e in &self.requests {
+            while other.requests[other_index].type_index < e.type_index {
+                other_index += 1;
+                if other_index == other.requests.len() {
+                    return false;
+                }
+            }
+            if e.type_index == other.requests[other_index].type_index
+                && (e.exclusive || other.requests[other_index].exclusive)
+            {
+                return true;
+            }
+        }
+        false
     }
 
-    /// Returns true if both requirements can be satisfied at the same time.
+    /// Returns true if both requests can be satisfied at the same time.
     pub fn safe_with(&self, other: &Self) -> bool {
-        todo!()
+        !self.conflicts_with(other) || self.disjoint_with(other)
     }
 }
 
 /// SAFETY: requests should cover all components that are accessed.
-pub unsafe trait QueryParameter<Storage> {
+pub unsafe trait QueryParameter<'a, Storage> {
     fn add_requests(req: &mut ComponentRequests);
     /// SAFETY: assumes that requests do not "collide" with each other.
-    unsafe fn get_from_world<'a>(
-        world: &QueryWorld<'a, Storage>,
+    unsafe fn get_from_world(
+        world: &'a QueryWorld<'a, Storage>,
         archetype: ArchetypeID,
         index: InArchetypeId,
     ) -> Self;
 }
+
+gen_query_param_tuple_impls!(1);
+gen_query_param_tuple_impls!(2);
+gen_query_param_tuple_impls!(3);
+gen_query_param_tuple_impls!(4);
+gen_query_param_tuple_impls!(5);
+gen_query_param_tuple_impls!(6);
 
 #[cfg(test)]
 mod tests {
     use super::ComponentRequests;
 
     #[test]
-    fn test_disjoint() {
+    fn req_disjoint() {
         let mut req1 = ComponentRequests::default();
         let mut req2 = ComponentRequests::default();
         let mut req3 = ComponentRequests::default();
@@ -141,12 +166,64 @@ mod tests {
 
         assert!(!req1.disjoint_with(&req2));
         assert!(!req1.disjoint_with(&req3));
-        // assert!(req1.disjoint(&req4));
         assert!(req2.disjoint_with(&req3));
-        // assert!(!req2.disjoint(&req4));
         assert!(req3.disjoint_with(&req4));
 
         assert!(!req3.disjoint_with(&req_empty));
         assert!(!req_empty.disjoint_with(&req3));
+    }
+
+    #[test]
+    fn req_conflict() {
+        let mut req1 = ComponentRequests::default();
+        let mut req2 = ComponentRequests::default();
+        let mut req3 = ComponentRequests::default();
+        let mut req4 = ComponentRequests::default();
+
+        req1.request(0, false);
+        req1.require(0);
+
+        req2.request(0, false);
+        req2.require(0);
+        req2.require(1);
+
+        req3.request(0, true);
+        req3.require(0);
+        req3.exclude(1);
+
+        req4.request(1, true);
+        req4.require(1);
+
+        assert!(req1.conflicts_with(&req3));
+        assert!(req2.conflicts_with(&req3));
+        assert!(!req1.conflicts_with(&req2));
+        assert!(!req3.conflicts_with(&req4));
+    }
+
+    #[test]
+    fn req_safe() {
+        let mut req1 = ComponentRequests::default();
+        let mut req2 = ComponentRequests::default();
+        let mut req3 = ComponentRequests::default();
+        let mut req4 = ComponentRequests::default();
+
+        req1.request(0, false);
+        req1.require(0);
+
+        req2.request(0, false);
+        req2.require(0);
+        req2.require(1);
+
+        req3.request(0, true);
+        req3.require(0);
+        req3.exclude(1);
+
+        req4.request(1, true);
+        req4.require(1);
+
+        assert!(!req1.safe_with(&req3));
+        assert!(req2.safe_with(&req3));
+        assert!(req1.safe_with(&req2));
+        assert!(req3.safe_with(&req4));
     }
 }
