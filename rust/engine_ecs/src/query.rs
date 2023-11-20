@@ -1,17 +1,83 @@
 use std::marker::PhantomData;
 
 use engine_macro::gen_query_param_tuple_impls;
-use smallvec::{Array, SmallVec};
+use smallvec::SmallVec;
 
-use crate::{ArchetypeID, InArchetypeId, QueryWorld, TypeIndex};
+use crate::{ArchetypeID, ArchetypeInfo, EntityID, InArchetypeId, QueryWorld, TypeIndex};
 
-pub trait SystemParameter<Storage> {
-    fn from_world<'a>(world: &QueryWorld<'a, Storage>) -> Self;
+/// SAFETY: requests should cover all components that are accessed.
+pub unsafe trait SystemParameter<'a, Storage> {
+    fn requests() -> SmallVec<[ComponentRequests; 8]>;
+    /// SAFETY: assumes that requests do not "collide" with each other.
+    unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self;
 }
 
-pub struct Query<'a, T: QueryParameter<'a, Storage>, Storage> {
+pub struct Query<'a, Storage, T: QueryParameter<'a, Storage>, Limits: QueryLimits = ()> {
     world: &'a QueryWorld<'a, Storage>,
-    _phantom: PhantomData<T>,
+    _phantom: PhantomData<(T, Limits)>,
+}
+
+unsafe impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
+    SystemParameter<'a, Storage> for Query<'a, Storage, T, Limits>
+{
+    fn requests() -> SmallVec<[ComponentRequests; 8]> {
+        let mut req_vec = SmallVec::new();
+        let mut req = ComponentRequests::default();
+        T::add_requests(&mut req);
+        Limits::add_requests(&mut req);
+        req_vec.push(req);
+        req_vec
+    }
+
+    unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self {
+        Query {
+            world,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
+    Query<'a, Storage, T, Limits>
+{
+    pub fn iter<'b>(&'b mut self) -> impl Iterator<Item = T> + 'b + 'a
+    where
+        'b: 'a,
+    {
+        let mut req = ComponentRequests::default();
+        T::add_requests(&mut req);
+        Limits::add_requests(&mut req);
+
+        let world = &self.world;
+
+        world
+            .inner
+            .archeman
+            .archetypes
+            .iter()
+            .enumerate()
+            .filter(move |(_, arche)| req.satisfied_by(&arche))
+            .flat_map(move |(arche_id, arche)| {
+                arche.entities.iter().map(move |ent_id| {
+                    let ent = world
+                        .inner
+                        .entities
+                        .get(*ent_id)
+                        .expect("entity exists, as it exists in archetype");
+                    let arche_id = arche_id as u32;
+                    assert_eq!(ent.archetype_id.0, arche_id);
+                    // SAFERY: invariant checked when Query was created.
+                    unsafe {
+                        T::get_from_world(
+                            world,
+                            ArchetypeID(arche_id),
+                            ent.in_archetype_id,
+                            *ent_id,
+                        )
+                    }
+                })
+            })
+    }
 }
 
 #[derive(Debug)]
@@ -122,6 +188,25 @@ impl ComponentRequests {
     pub fn safe_with(&self, other: &Self) -> bool {
         !self.conflicts_with(other) || self.disjoint_with(other)
     }
+
+    fn satisfied_by(&self, by: &ArchetypeInfo) -> bool {
+        let mut other_index = 0;
+        if by.component_slots.len() == 0 {
+            return self.filter_require.len() == 0;
+        }
+        for e in &self.filter_require {
+            while by.component_slots[other_index].0 < *e {
+                other_index += 1;
+                if other_index == by.component_slots.len() {
+                    return false;
+                }
+            }
+            if *e != by.component_slots[other_index].0 {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 /// SAFETY: requests should cover all components that are accessed.
@@ -132,6 +217,7 @@ pub unsafe trait QueryParameter<'a, Storage> {
         world: &'a QueryWorld<'a, Storage>,
         archetype: ArchetypeID,
         index: InArchetypeId,
+        ent_id: EntityID,
     ) -> Self;
 }
 
@@ -141,6 +227,14 @@ gen_query_param_tuple_impls!(3);
 gen_query_param_tuple_impls!(4);
 gen_query_param_tuple_impls!(5);
 gen_query_param_tuple_impls!(6);
+
+pub trait QueryLimits {
+    fn add_requests(req: &mut ComponentRequests);
+}
+
+impl QueryLimits for () {
+    fn add_requests(_req: &mut ComponentRequests) {}
+}
 
 #[cfg(test)]
 mod tests {

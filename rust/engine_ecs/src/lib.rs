@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use internal::{ComponentStorageProvider, DynDispath};
+use query::{ComponentRequests, SystemParameter};
 use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
+use smallvec::SmallVec;
 
 pub(crate) mod component_traits;
 mod ecs_cell;
@@ -10,7 +12,10 @@ mod ecs_cell;
 pub mod internal;
 pub(crate) mod query;
 
-pub use crate::component_traits::{Bundle, Component};
+pub use crate::{
+    component_traits::{Bundle, Component},
+    query::Query,
+};
 
 new_key_type! { pub struct EntityID; }
 
@@ -42,10 +47,12 @@ struct ArchetypeInfo {
     component_slots: Box<[(TypeIndex, StorageID)]>,
 }
 
+type TypeBox = Box<[TypeIndex]>;
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct ArchetypeManager {
     archetypes: Vec<ArchetypeInfo>,
-    archetype_map: HashMap<Box<[TypeIndex]>, ArchetypeID>,
+    archetype_map: HashMap<TypeBox, ArchetypeID>,
 }
 
 impl ArchetypeManager {
@@ -218,6 +225,7 @@ impl<Storage: DynDispath + Default> World<Storage> {
 
 pub struct QueryWorld<'a, Storage> {
     inner: &'a mut World<Storage>,
+    currently_requested: SmallVec<[ComponentRequests; 8]>,
 }
 
 impl<'a, Storage> QueryWorld<'a, Storage> {
@@ -251,5 +259,22 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         archetype: ArchetypeID,
     ) -> Option<StorageID> {
         self.inner.archeman.find_storage::<Storage, T>(archetype)
+    }
+
+    pub fn parameter<Param: SystemParameter<'a, Storage>>(&'a mut self) -> Param {
+        let requests = Param::requests();
+        for new_request in requests {
+            for current_request in &self.currently_requested {
+                if !new_request.safe_with(current_request) {
+                    panic!(
+                        "{:?} and {:?} are incompatible, and thus cannot be used at the same time.",
+                        current_request, new_request
+                    );
+                }
+            }
+            self.currently_requested.push(new_request);
+        }
+        // SAFETY: checked that requests are satisfied.
+        unsafe { Param::from_world(self) }
     }
 }
