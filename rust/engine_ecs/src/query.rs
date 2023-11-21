@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use engine_macro::gen_query_param_tuple_impls;
 use smallvec::SmallVec;
 
-use crate::{ArchetypeID, ArchetypeInfo, EntityID, InArchetypeId, QueryWorld, TypeIndex};
+use crate::{
+    ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeId, QueryWorld, TypeIndex,
+};
 
 /// # Safety
 ///
@@ -195,6 +197,10 @@ impl ComponentRequests {
     }
 
     fn satisfied_by(&self, by: &ArchetypeInfo) -> bool {
+        self.require_satisfied(by) && self.exclude_satisfied(by)
+    }
+
+    fn require_satisfied(&self, by: &ArchetypeInfo) -> bool {
         let mut other_index = 0;
         if by.component_slots.is_empty() {
             return self.filter_require.is_empty();
@@ -207,6 +213,25 @@ impl ComponentRequests {
                 }
             }
             if *e != by.component_slots[other_index].0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn exclude_satisfied(&self, by: &ArchetypeInfo) -> bool {
+        let mut other_index = 0;
+        if by.component_slots.is_empty() {
+            return true;
+        }
+        for e in &self.filter_exclude {
+            while by.component_slots[other_index].0 < *e {
+                other_index += 1;
+                if other_index == by.component_slots.len() {
+                    return true;
+                }
+            }
+            if *e == by.component_slots[other_index].0 {
                 return false;
             }
         }
@@ -243,6 +268,20 @@ pub trait QueryLimits {
 
 impl QueryLimits for () {
     fn add_requests(_req: &mut ComponentRequests) {}
+}
+
+pub struct WithG<Storage, T: Component<Storage>>(PhantomData<fn() -> (T, Storage)>);
+pub struct WithoutG<Storage, T: Component<Storage>>(PhantomData<fn() -> (T, Storage)>);
+
+impl<Storage, T: Component<Storage>> QueryLimits for WithG<Storage, T> {
+    fn add_requests(req: &mut ComponentRequests) {
+        req.require(T::TYPE_INDEX);
+    }
+}
+impl<Storage, T: Component<Storage>> QueryLimits for WithoutG<Storage, T> {
+    fn add_requests(req: &mut ComponentRequests) {
+        req.exclude(T::TYPE_INDEX);
+    }
 }
 
 #[cfg(test)]

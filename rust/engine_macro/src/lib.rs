@@ -112,6 +112,8 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         )*
 
         pub type Query<'a, T, Limits=()> = ::engine_ecs::QueryG<'a, ComponentStorage, T, Limits>;
+        pub type With<T> = ::engine_ecs::WithG<ComponentStorage, T>;
+        pub type Without<T> = ::engine_ecs::WithoutG<ComponentStorage, T>;
     )
     .into()
 }
@@ -185,6 +187,13 @@ pub fn gen_query_param_tuple_impls(input: TokenStream) -> TokenStream {
                 ent_id: EntityID,
             ) -> Self {
                 (#(#type_names::get_from_world(world, archetype, index, ent_id),)*)
+            }
+        }
+
+        impl<#(#type_names: QueryLimits,)*> QueryLimits for (#(#type_names,)*)
+        {
+            fn add_requests(req: &mut ComponentRequests) {
+                #(#type_names::add_requests(req);)*
             }
         }
     ).into()

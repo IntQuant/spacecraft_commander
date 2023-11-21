@@ -208,4 +208,27 @@ mod tests {
         let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
         let _query2: Query<(&mut Component1, &Component2)> = query_world.parameter();
     }
+
+    #[test]
+    fn query_disjoint() {
+        let mut world = World::<ComponentStorage>::new();
+        let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
+        let ent3 = world.spawn((Component1(6), Component2(7)));
+
+        let query_world = world.query_world();
+
+        let mut query1: Query<&mut Component1, With<Component3>> = query_world.parameter();
+        let mut query2: Query<&mut Component1, Without<Component3>> = query_world.parameter();
+        for component in query1.iter() {
+            component.0 += 3;
+        }
+        for component in query2.iter() {
+            component.0 += 6;
+        }
+
+        assert_eq!(world.get::<Component1>(ent1).unwrap().0, 3);
+        assert_eq!(world.get::<Component1>(ent2).unwrap().0, 6);
+        assert_eq!(world.get::<Component1>(ent3).unwrap().0, 12);
+    }
 }

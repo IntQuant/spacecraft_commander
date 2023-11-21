@@ -14,7 +14,7 @@ pub(crate) mod query;
 
 pub use crate::{
     component_traits::{Bundle, Component},
-    query::QueryG,
+    query::{QueryG, WithG, WithoutG},
 };
 
 new_key_type! { pub struct EntityID; }
