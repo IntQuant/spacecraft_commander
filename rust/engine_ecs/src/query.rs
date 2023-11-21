@@ -255,6 +255,19 @@ pub unsafe trait QueryParameter<'a, Storage> {
     ) -> Self;
 }
 
+unsafe impl<'a, Storage> QueryParameter<'a, Storage> for EntityID {
+    fn add_requests(_req: &mut ComponentRequests) {}
+
+    unsafe fn get_from_world(
+        _world: &'a QueryWorld<'a, Storage>,
+        _archetype: ArchetypeID,
+        _index: InArchetypeId,
+        ent_id: EntityID,
+    ) -> Self {
+        ent_id
+    }
+}
+
 gen_query_param_tuple_impls!(1);
 gen_query_param_tuple_impls!(2);
 gen_query_param_tuple_impls!(3);
