@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use engine_ecs::World;
+    use engine_ecs::{EntityID, World};
     use engine_macro::gen_storage_for_world;
     use serde::{Deserialize, Serialize};
 
@@ -141,7 +141,7 @@ mod tests {
     fn query_basic() {
         let mut world = World::<ComponentStorage>::new();
         world.spawn((Component1(0), Component2(1), Component3(2)));
-        world.spawn((Component1(3), Component2(4), Component3(5)));
+        let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
         world.spawn((Component1(6), Component2(7)));
 
         let query_world = world.query_world();
@@ -153,13 +153,14 @@ mod tests {
         assert_eq!(*res[1], Component1(3));
         assert_eq!(*res[2], Component1(6));
 
-        let mut query: Query<(&Component1, &Component3)> = query_world.parameter();
+        let mut query: Query<(&Component1, &Component3, EntityID)> = query_world.parameter();
         let res = query.iter().collect::<Vec<_>>();
         assert_eq!(res.len(), 2);
         assert_eq!(*res[0].0, Component1(0));
         assert_eq!(*res[1].0, Component1(3));
         assert_eq!(*res[0].1, Component3(2));
         assert_eq!(*res[1].1, Component3(5));
+        assert_eq!(res[1].2, ent2);
     }
 
     #[test]
