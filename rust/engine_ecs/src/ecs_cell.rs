@@ -15,13 +15,17 @@ impl<T> EcsCell<T> {
     }
 
     pub(crate) fn get(&self) -> &T {
-        // SAFETY: normally can only get &T with &EcsCell<T>.
+        // Safety: normally can only get &T with &EcsCell<T>.
         unsafe { &*self.inner.get() }
     }
     pub(crate) fn get_mut(&mut self) -> &mut T {
         self.inner.get_mut()
     }
-    /// SAFETY: ensure that Self::get() method doesn't get called while returned reference exists.
+    /// # Safety
+    ///
+    /// Ensure that Self::get() method doesn't get called while returned reference exists.
+    /// Ensure that at most one &mut reference exists at the same time.
+    #[allow(clippy::mut_from_ref)]
     pub(crate) unsafe fn get_mut_unsafe(&self) -> &mut T {
         unsafe { &mut *self.inner.get() }
     }

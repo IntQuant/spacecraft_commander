@@ -5,20 +5,25 @@ use smallvec::SmallVec;
 
 use crate::{ArchetypeID, ArchetypeInfo, EntityID, InArchetypeId, QueryWorld, TypeIndex};
 
-/// SAFETY: requests should cover all components that are accessed.
+/// # Safety
+///
+/// Requests should cover all components that are accessed.
 pub unsafe trait SystemParameter<'a, Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]>;
-    /// SAFETY: assumes that requests do not "collide" with each other.
+    /// # Safety
+    ///
+    /// Assumes that requests do not "collide" with each other.
     unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self;
 }
 
-pub struct Query<'a, Storage, T: QueryParameter<'a, Storage>, Limits: QueryLimits = ()> {
+/// Query that is Generic over storage.
+pub struct QueryG<'a, Storage, T: QueryParameter<'a, Storage>, Limits: QueryLimits = ()> {
     world: &'a QueryWorld<'a, Storage>,
     _phantom: PhantomData<(T, Limits)>,
 }
 
 unsafe impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
-    SystemParameter<'a, Storage> for Query<'a, Storage, T, Limits>
+    SystemParameter<'a, Storage> for QueryG<'a, Storage, T, Limits>
 {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
         let mut req_vec = SmallVec::new();
@@ -30,7 +35,7 @@ unsafe impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
     }
 
     unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self {
-        Query {
+        QueryG {
             world,
             _phantom: PhantomData,
         }
@@ -38,7 +43,7 @@ unsafe impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
 }
 
 impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
-    Query<'a, Storage, T, Limits>
+    QueryG<'a, Storage, T, Limits>
 {
     pub fn iter<'b>(&'b mut self) -> impl Iterator<Item = T> + 'b + 'a
     where
@@ -56,7 +61,7 @@ impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
             .archetypes
             .iter()
             .enumerate()
-            .filter(move |(_, arche)| req.satisfied_by(&arche))
+            .filter(move |(_, arche)| req.satisfied_by(arche))
             .flat_map(move |(arche_id, arche)| {
                 arche.entities.iter().map(move |ent_id| {
                     let ent = world
@@ -140,7 +145,7 @@ impl ComponentRequests {
 
     fn _disjoint_half(&self, other: &Self) -> bool {
         let mut other_index = 0;
-        if other.filter_require.len() == 0 {
+        if other.filter_require.is_empty() {
             return false;
         }
         for &e in &self.filter_exclude {
@@ -165,7 +170,7 @@ impl ComponentRequests {
     /// Returns true if both requests need access to a component and at least one of requests needs exclusive access.
     pub fn conflicts_with(&self, other: &Self) -> bool {
         let mut other_index = 0;
-        if other.requests.len() == 0 {
+        if other.requests.is_empty() {
             return false;
         }
         for e in &self.requests {
@@ -191,8 +196,8 @@ impl ComponentRequests {
 
     fn satisfied_by(&self, by: &ArchetypeInfo) -> bool {
         let mut other_index = 0;
-        if by.component_slots.len() == 0 {
-            return self.filter_require.len() == 0;
+        if by.component_slots.is_empty() {
+            return self.filter_require.is_empty();
         }
         for e in &self.filter_require {
             while by.component_slots[other_index].0 < *e {
@@ -209,10 +214,14 @@ impl ComponentRequests {
     }
 }
 
-/// SAFETY: requests should cover all components that are accessed.
+/// # Safety
+///
+/// Requests should cover all components that are accessed.
 pub unsafe trait QueryParameter<'a, Storage> {
     fn add_requests(req: &mut ComponentRequests);
-    /// SAFETY: assumes that requests do not "collide" with each other.
+    /// # Safety
+    ///
+    /// Assumes that requests do not "collide" with each other.
     unsafe fn get_from_world(
         world: &'a QueryWorld<'a, Storage>,
         archetype: ArchetypeID,

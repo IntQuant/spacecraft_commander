@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
 
 use internal::{ComponentStorageProvider, DynDispath};
 use query::{ComponentRequests, SystemParameter};
@@ -14,7 +14,7 @@ pub(crate) mod query;
 
 pub use crate::{
     component_traits::{Bundle, Component},
-    query::Query,
+    query::QueryG,
 };
 
 new_key_type! { pub struct EntityID; }
@@ -90,13 +90,19 @@ pub struct World<Storage> {
     storage: Storage,
 }
 
-impl<Storage: DynDispath + Default> World<Storage> {
-    pub fn new() -> Self {
+impl<Storage: DynDispath + Default> Default for World<Storage> {
+    fn default() -> Self {
         Self {
             entities: Default::default(),
             archeman: Default::default(),
             storage: Default::default(),
         }
+    }
+}
+
+impl<Storage: DynDispath + Default> World<Storage> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn allocate_storage(&mut self, component: TypeIndex) -> StorageID {
@@ -116,7 +122,7 @@ impl<Storage: DynDispath + Default> World<Storage> {
             .insert(components.into(), archetype_id);
 
         let component_slots = components
-            .into_iter()
+            .iter()
             .map(|&component| (component, self.allocate_storage(component)))
             .collect();
 
@@ -221,15 +227,24 @@ impl<Storage: DynDispath + Default> World<Storage> {
             .storage_mut()
             .add_to_storage(storage, component)
     }
+
+    pub fn query_world(&mut self) -> QueryWorld<Storage> {
+        QueryWorld {
+            inner: self,
+            currently_requested: Default::default(),
+        }
+    }
 }
 
 pub struct QueryWorld<'a, Storage> {
     inner: &'a mut World<Storage>,
-    currently_requested: SmallVec<[ComponentRequests; 8]>,
+    currently_requested: RefCell<SmallVec<[ComponentRequests; 8]>>,
 }
 
 impl<'a, Storage> QueryWorld<'a, Storage> {
-    /// SAFETY: aliasing rules have to be upheld per StorageID and component type.
+    /// # Safety
+    ///
+    /// aliasing rules have to be upheld per StorageID and component type.
     pub unsafe fn get<T: Component<Storage>>(
         &self,
         storage: StorageID,
@@ -240,7 +255,9 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
     {
         self.inner.storage.storage().get(storage, index_in_arche)
     }
-    /// SAFETY: see `get` method.
+    /// # Safety
+    ///
+    /// See `get` method.
     pub unsafe fn get_mut<T>(
         &self,
         storage: StorageID,
@@ -261,10 +278,10 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         self.inner.archeman.find_storage::<Storage, T>(archetype)
     }
 
-    pub fn parameter<Param: SystemParameter<'a, Storage>>(&'a mut self) -> Param {
+    pub fn parameter<Param: SystemParameter<'a, Storage>>(&'a self) -> Param {
         let requests = Param::requests();
         for new_request in requests {
-            for current_request in &self.currently_requested {
+            for current_request in self.currently_requested.borrow().iter() {
                 if !new_request.safe_with(current_request) {
                     panic!(
                         "{:?} and {:?} are incompatible, and thus cannot be used at the same time.",
@@ -272,7 +289,7 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
                     );
                 }
             }
-            self.currently_requested.push(new_request);
+            self.currently_requested.borrow_mut().push(new_request);
         }
         // SAFETY: checked that requests are satisfied.
         unsafe { Param::from_world(self) }
