@@ -11,7 +11,11 @@ mod tests {
     #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
     struct Component3(u16);
 
-    gen_storage_for_world! { Component1 Component2 Component3 }
+    gen_storage_for_world! {
+        : components
+            Component1 Component2 Component3
+        : resources
+    }
 
     #[test]
     fn entity_spawned() {

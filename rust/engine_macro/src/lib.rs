@@ -3,16 +3,47 @@ use std::iter;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
+enum GenState {
+    None,
+    Components,
+    Resources,
+}
+
 #[proc_macro]
 pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
+    let mut gen_state = GenState::None;
     let mut component_names = Vec::new();
-    for token in input {
-        component_names.push(token.to_string());
+    let mut resource_names = Vec::new();
+
+    let mut input_iter = input.into_iter();
+    while let Some(token_raw) = input_iter.next() {
+        let token_str = token_raw.to_string();
+        match token_str.as_str() {
+            ":" => {
+                let new_mode = input_iter.next().map(|x| x.to_string()).unwrap_or_default();
+                match new_mode.as_str() {
+                    "components" => gen_state = GenState::Components,
+                    "resources" => gen_state = GenState::Resources,
+                    _ => panic!("Unknown requested state: {}", new_mode),
+                }
+            }
+            _ => {
+                match gen_state {
+                    GenState::None => panic!("Set current mode with ': <mode>', where <mode> is one of 'components', 'resources'"),
+                    GenState::Components => component_names.push(token_str),
+                    GenState::Resources => resource_names.push(token_str),
+                }
+            }
+        }
     }
+    // for token in input {
+    //     component_names.push(token.to_string());
+    // }
 
     let component_storage_names = component_names
         .iter()
-        .map(|c| format_ident!("component_storage_{}", c.to_lowercase()))
+        .enumerate()
+        .map(|(i, _c)| format_ident!("component_storage_{}", i))
         .collect::<Vec<_>>();
 
     let component_types = component_names
