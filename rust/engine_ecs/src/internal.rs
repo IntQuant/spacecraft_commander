@@ -75,3 +75,25 @@ impl<T> DynComponentList for ComponentList<T> {
             .swap_remove(index as usize);
     }
 }
+
+pub trait ResourceStorageProvider<T> {
+    fn storage(&self) -> &ResourceStorage<T>;
+    fn storage_mut(&mut self) -> &mut ResourceStorage<T>;
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub struct ResourceStorage<T> {
+    inner: EcsCell<T>,
+}
+
+impl<T> ResourceStorage<T> {
+    pub(crate) fn get(&self) -> &T {
+        self.inner.get()
+    }
+    pub(crate) fn get_mut(&mut self) -> &mut T {
+        self.inner.get_mut()
+    }
+    pub(crate) unsafe fn get_mut_unsafe(&self) -> &mut T {
+        unsafe { self.inner.get_mut_unsafe() }
+    }
+}

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use internal::{ComponentStorageProvider, DynDispath};
+use internal::{ComponentStorageProvider, DynDispath, ResourceStorageProvider};
 use query::{ComponentRequests, SystemParameter};
 use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
@@ -212,6 +212,20 @@ impl<Storage: DynDispath + Default> World<Storage> {
             .get_mut(storage_id, info.in_archetype_id)
     }
 
+    pub fn resource<R>(&self) -> &R
+    where
+        Storage: ResourceStorageProvider<R>,
+    {
+        self.storage.storage().get()
+    }
+
+    pub fn resource_mut<R>(&mut self) -> &mut R
+    where
+        Storage: ResourceStorageProvider<R>,
+    {
+        self.storage.storage_mut().get_mut()
+    }
+
     /// Used by component bundles to add themselves to an archetype
     #[doc(hidden)]
     pub fn add_bundle_to_archetype<T>(&mut self, archetype: ArchetypeID, component: T)
@@ -276,6 +290,19 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         archetype: ArchetypeID,
     ) -> Option<StorageID> {
         self.inner.archeman.find_storage::<Storage, T>(archetype)
+    }
+
+    pub unsafe fn resource<R>(&self) -> &R
+    where
+        Storage: ResourceStorageProvider<R>,
+    {
+        self.inner.storage.storage().get()
+    }
+    pub unsafe fn resource_mut<R>(&self) -> &mut R
+    where
+        Storage: ResourceStorageProvider<R>,
+    {
+        self.inner.storage.storage().get_mut_unsafe()
     }
 
     pub fn parameter<Param: SystemParameter<'a, Storage>>(&'a self) -> Param {
