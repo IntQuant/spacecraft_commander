@@ -104,7 +104,9 @@ impl<Storage: DynDispath + Default> World<Storage> {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+impl<Storage: DynDispath> World<Storage> {
     fn allocate_storage(&mut self, component: TypeIndex) -> StorageID {
         self.storage.dispath_mut(component, |list| list.allocate())
     }

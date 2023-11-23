@@ -10,11 +10,14 @@ mod tests {
     struct Component2(u32);
     #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
     struct Component3(u16);
+    #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+    struct Resource1(u32);
 
     gen_storage_for_world! {
         : components
             Component1 Component2 Component3
         : resources
+            Resource1
     }
 
     #[test]
@@ -235,5 +238,13 @@ mod tests {
         assert_eq!(world.get::<Component1>(ent1).unwrap().0, 3);
         assert_eq!(world.get::<Component1>(ent2).unwrap().0, 6);
         assert_eq!(world.get::<Component1>(ent3).unwrap().0, 12);
+    }
+
+    #[test]
+    fn resource() {
+        let mut world = World::<ComponentStorage>::new();
+        assert_eq!(world.resource::<Resource1>().0, 0);
+        world.resource_mut::<Resource1>().0 += 10;
+        assert_eq!(world.resource::<Resource1>().0, 10);
     }
 }

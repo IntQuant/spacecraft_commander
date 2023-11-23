@@ -46,9 +46,20 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         .map(|(i, _c)| format_ident!("component_storage_{}", i))
         .collect::<Vec<_>>();
 
+    let resource_storage_names = resource_names
+        .iter()
+        .enumerate()
+        .map(|(i, _c)| format_ident!("resource_storage_{}", i))
+        .collect::<Vec<_>>();
+
     let component_types = component_names
         .iter()
         .map(|c| format_ident!("{c}"))
+        .collect::<Vec<_>>();
+
+    let resource_types = resource_names
+        .iter()
+        .map(|c| format_ident!("{}", c))
         .collect::<Vec<_>>();
 
     let component_storages = component_types
@@ -64,7 +75,8 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         #[derive(Default, Clone)]
         #[derive(Serialize, Deserialize)]
         pub struct ComponentStorage {
-            #( #component_storages ),*
+            #( #component_storages ,)*
+            #(#resource_storage_names: ::engine_ecs::internal::ResourceStorage<#resource_types>,)*
         }
         #(
             impl ::engine_ecs::LocalTypeIndex<ComponentStorage> for #component_types {
@@ -77,6 +89,17 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 }
                 fn storage_mut(&mut self) -> &mut ::engine_ecs::internal::ComponentList<#component_types> {
                     &mut self.#component_storage_names
+                }
+            }
+        )*
+
+        #(
+            impl ::engine_ecs::internal::ResourceStorageProvider<#resource_types> for ComponentStorage {
+                fn storage(&self) -> & ::engine_ecs::internal::ResourceStorage<#resource_types> {
+                    & self.#resource_storage_names
+                }
+                fn storage_mut(&mut self) -> &mut ::engine_ecs::internal::ResourceStorage<#resource_types> {
+                    &mut self.#resource_storage_names
                 }
             }
         )*
