@@ -71,6 +71,9 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let counter2 = iter::successors(Some(0u32), |x| Some(x + 1));
     let counter3 = iter::successors(Some(0u32), |x| Some(x + 1));
 
+    let counter_resources = 0..(resource_names.len() as u32);
+    let counter_resources_2 = 0..(resource_names.len() as u32);
+
     quote!(
         #[derive(Default, Clone)]
         #[derive(Serialize, Deserialize)]
@@ -94,6 +97,10 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         )*
 
         #(
+            impl ::engine_ecs::LocalTypeIndex<::engine_ecs::internal::OfResources<ComponentStorage>> for #component_types {
+                const TYPE_INDEX: u32 = #counter_resources;
+            }
+
             impl ::engine_ecs::internal::ResourceStorageProvider<#resource_types> for ComponentStorage {
                 fn storage(&self) -> & ::engine_ecs::internal::ResourceStorage<#resource_types> {
                     & self.#resource_storage_names
@@ -161,6 +168,34 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 ) -> Self {
                     let storage = world.storage_for_archetype::<#component_types>(archetype).expect("component assumed to exist, as we've asked for it");
                     world.get_mut(storage, index).expect("component assumed to exist, as it exists in the archetype")
+                }
+            }
+        )*
+
+        #(
+            unsafe impl<'a> ::engine_ecs::internal::SystemParameter<'a, ComponentStorage> for &'a #resource_types {
+                fn requests() -> ::engine_ecs::internal::SmallVec<[::engine_ecs::internal::ComponentRequests; 8]> {
+                    let mut ret = ::engine_ecs::internal::SmallVec::default();
+                    let mut req = ::engine_ecs::internal::ComponentRequests::default();
+                    req.request_resource(#counter_resources_2, false);
+                    ret.push(req);
+                    ret
+                }
+                unsafe fn from_world(world: &'a ::engine_ecs::QueryWorld<'a, ComponentStorage>) -> Self {
+                    world.resource()
+                }
+            }
+
+            unsafe impl<'a> ::engine_ecs::internal::SystemParameter<'a, ComponentStorage> for &'a mut #resource_types {
+                fn requests() -> ::engine_ecs::internal::SmallVec<[::engine_ecs::internal::ComponentRequests; 8]> {
+                    let mut ret = ::engine_ecs::internal::SmallVec::default();
+                    let mut req = ::engine_ecs::internal::ComponentRequests::default();
+                    req.request_resource(#counter_resources_2, true);
+                    ret.push(req);
+                    ret
+                }
+                unsafe fn from_world(world: &'a ::engine_ecs::QueryWorld<'a, ComponentStorage>) -> Self {
+                    world.resource_mut()
                 }
             }
         )*

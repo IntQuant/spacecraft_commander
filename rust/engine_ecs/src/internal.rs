@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::{ecs_cell::EcsCell, StorageID, TypeIndex};
 
 pub use crate::component_traits::TypeIndexStorage;
-pub use crate::query::{ComponentRequests, QueryParameter};
+pub use crate::system_parameter::{ComponentRequests, QueryParameter, SystemParameter};
 pub use crate::InArchetypeId;
+pub use smallvec::SmallVec;
 
 pub trait ComponentStorageProvider<T> {
     fn storage(&self) -> &ComponentList<T>;
@@ -97,3 +98,5 @@ impl<T> ResourceStorage<T> {
         unsafe { self.inner.get_mut_unsafe() }
     }
 }
+
+pub struct OfResources<T>(T);

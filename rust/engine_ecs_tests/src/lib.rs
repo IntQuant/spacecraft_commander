@@ -247,4 +247,27 @@ mod tests {
         world.resource_mut::<Resource1>().0 += 10;
         assert_eq!(world.resource::<Resource1>().0, 10);
     }
+
+    #[test]
+    fn parameter_resource() {
+        let mut world = World::<ComponentStorage>::new();
+        let query_world = world.query_world();
+        let param: &mut Resource1 = query_world.parameter();
+        param.0 += 10;
+
+        let query_world = world.query_world();
+        let param: &Resource1 = query_world.parameter();
+        assert_eq!(param.0, 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "are incompatible")]
+    fn parameter_resource_conflict() {
+        let mut world = World::<ComponentStorage>::new();
+        let query_world = world.query_world();
+        let param: &mut Resource1 = query_world.parameter();
+        param.0 += 10;
+        let param: &Resource1 = query_world.parameter();
+        assert_eq!(param.0, 10);
+    }
 }

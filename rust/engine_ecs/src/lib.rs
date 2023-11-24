@@ -1,25 +1,34 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use internal::{ComponentStorageProvider, DynDispath, ResourceStorageProvider};
-use query::{ComponentRequests, SystemParameter};
+use internal::{ComponentStorageProvider, DynDispath, OfResources, ResourceStorageProvider};
 use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
 use smallvec::SmallVec;
+use system_parameter::{ComponentRequests, SystemParameter};
 
 pub(crate) mod component_traits;
 mod ecs_cell;
 #[doc(hidden)]
 pub mod internal;
-pub(crate) mod query;
+pub(crate) mod system_parameter;
 
 pub use crate::{
     component_traits::{Bundle, Component},
-    query::{QueryG, WithG, WithoutG},
+    system_parameter::{QueryG, WithG, WithoutG},
 };
 
 new_key_type! { pub struct EntityID; }
 
 pub type TypeIndex = u32;
+
+pub trait Resource<Storage>: LocalTypeIndex<OfResources<Storage>> {}
+
+impl<Storage, T> Resource<Storage> for T
+where
+    Storage: ComponentStorageProvider<T>,
+    T: LocalTypeIndex<OfResources<Storage>>,
+{
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct StorageID(u32);
@@ -260,7 +269,7 @@ pub struct QueryWorld<'a, Storage> {
 impl<'a, Storage> QueryWorld<'a, Storage> {
     /// # Safety
     ///
-    /// aliasing rules have to be upheld per StorageID and component type.
+    /// Aliasing rules have to be upheld per StorageID and component type.
     pub unsafe fn get<T: Component<Storage>>(
         &self,
         storage: StorageID,
@@ -294,12 +303,19 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         self.inner.archeman.find_storage::<Storage, T>(archetype)
     }
 
+    /// # Safety
+    ///
+    /// Aliasing rules have to be upheld per resource type.
     pub unsafe fn resource<R>(&self) -> &R
     where
         Storage: ResourceStorageProvider<R>,
     {
         self.inner.storage.storage().get()
     }
+
+    /// # Safety
+    ///
+    /// See `resource` method.
     pub unsafe fn resource_mut<R>(&self) -> &mut R
     where
         Storage: ResourceStorageProvider<R>,
@@ -320,7 +336,7 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
             }
             self.currently_requested.borrow_mut().push(new_request);
         }
-        // SAFETY: checked that requests are satisfied.
+        // Safety: checked that requests are satisfied.
         unsafe { Param::from_world(self) }
     }
 }

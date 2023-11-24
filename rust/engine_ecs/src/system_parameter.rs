@@ -107,6 +107,7 @@ pub struct ComponentRequests {
     pub(crate) requests: SmallVec<[Request; 8]>,
     pub(crate) filter_require: SmallVec<[TypeIndex; 8]>,
     pub(crate) filter_exclude: SmallVec<[TypeIndex; 8]>,
+    pub(crate) resource_requests: Vec<Request>,
 }
 
 impl ComponentRequests {
@@ -142,6 +143,22 @@ impl ComponentRequests {
             Err(ind) => {
                 self.filter_exclude.insert(ind, type_index);
             }
+        }
+    }
+
+    pub fn request_resource(&mut self, type_index: TypeIndex, exclusive: bool) {
+        let new_request = Request::new(type_index, exclusive);
+        match self
+            .resource_requests
+            .binary_search_by_key(&type_index, |req| req.type_index)
+        {
+            Ok(ind) => {
+                let req = &self.resource_requests[ind];
+                if req.exclusive != exclusive {
+                    panic!("Conflicting resource requests: type with index {type_index} requested as shared and exclusive at the same time");
+                }
+            }
+            Err(ind) => self.resource_requests.insert(ind, new_request),
         }
     }
 
@@ -191,9 +208,32 @@ impl ComponentRequests {
         false
     }
 
+    /// Returns true if both requests need access to a resource and at least one of requests needs exclusive access.
+    pub fn resource_conflicts_with(&self, other: &Self) -> bool {
+        let mut other_index = 0;
+        if other.resource_requests.is_empty() {
+            return false;
+        }
+        for e in &self.resource_requests {
+            while other.resource_requests[other_index].type_index < e.type_index {
+                other_index += 1;
+                if other_index == other.resource_requests.len() {
+                    return false;
+                }
+            }
+            if e.type_index == other.resource_requests[other_index].type_index
+                && (e.exclusive || other.resource_requests[other_index].exclusive)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Returns true if both requests can be satisfied at the same time.
     pub fn safe_with(&self, other: &Self) -> bool {
-        !self.conflicts_with(other) || self.disjoint_with(other)
+        (!self.conflicts_with(other) || self.disjoint_with(other))
+            && !self.resource_conflicts_with(other)
     }
 
     fn satisfied_by(&self, by: &ArchetypeInfo) -> bool {
@@ -353,6 +393,24 @@ mod tests {
         assert!(req2.conflicts_with(&req3));
         assert!(!req1.conflicts_with(&req2));
         assert!(!req3.conflicts_with(&req4));
+    }
+
+    #[test]
+    fn req_resource() {
+        let mut req1 = ComponentRequests::default();
+        let mut req2 = ComponentRequests::default();
+        let mut req3 = ComponentRequests::default();
+        let mut req4 = ComponentRequests::default();
+
+        req1.request_resource(0, false);
+        req2.request_resource(0, false);
+        req3.request_resource(0, true);
+        req4.request_resource(1, true);
+
+        assert!(req1.resource_conflicts_with(&req3));
+        assert!(req2.resource_conflicts_with(&req3));
+        assert!(!req1.resource_conflicts_with(&req2));
+        assert!(!req3.resource_conflicts_with(&req4));
     }
 
     #[test]
