@@ -10,12 +10,12 @@ use crate::{
 /// # Safety
 ///
 /// Requests should cover all things that are accessed.
-pub unsafe trait SystemParameter<'wrld: 'a, 'a, Storage> {
+pub unsafe trait SystemParameter<'a, Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]>;
     /// # Safety
     ///
     /// Assumes that requests do not "collide" with each other.
-    unsafe fn from_world(world: &'a QueryWorld<'wrld, Storage>) -> Self;
+    unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self;
 }
 
 /// Query that is Generic over storage.
@@ -25,7 +25,7 @@ pub struct QueryG<'a, Storage, T: QueryParameter<'a, Storage>, Limits: QueryLimi
 }
 
 unsafe impl<'wrld: 'a, 'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
-    SystemParameter<'wrld, 'a, Storage> for QueryG<'a, Storage, T, Limits>
+    SystemParameter<'wrld, Storage> for QueryG<'a, Storage, T, Limits>
 {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
         let mut req_vec = SmallVec::new();
@@ -282,24 +282,24 @@ impl ComponentRequests {
 /// # Safety
 ///
 /// Requests should cover all components that are accessed.
-pub unsafe trait QueryParameter<'a, Storage> {
+pub unsafe trait QueryParameter<'wrld, Storage> {
     fn add_requests(req: &mut ComponentRequests);
     /// # Safety
     ///
     /// Assumes that requests do not "collide" with each other.
     unsafe fn get_from_world(
-        world: &'a QueryWorld<'a, Storage>,
+        world: &'wrld QueryWorld<'wrld, Storage>,
         archetype: ArchetypeID,
         index: InArchetypeId,
         ent_id: EntityID,
     ) -> Self;
 }
 
-unsafe impl<'a, Storage> QueryParameter<'a, Storage> for EntityID {
+unsafe impl<Storage> QueryParameter<'_, Storage> for EntityID {
     fn add_requests(_req: &mut ComponentRequests) {}
 
     unsafe fn get_from_world(
-        _world: &'a QueryWorld<'a, Storage>,
+        _world: &QueryWorld<Storage>,
         _archetype: ArchetypeID,
         _index: InArchetypeId,
         ent_id: EntityID,

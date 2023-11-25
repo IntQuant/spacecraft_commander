@@ -270,4 +270,21 @@ mod tests {
         let param: &Resource1 = query_world.parameter();
         assert_eq!(param.0, 10);
     }
+
+    #[test]
+    fn system() {
+        fn sys(res: &mut Resource1) {
+            res.0 += 10;
+        }
+
+        let mut world = World::<ComponentStorage>::new();
+
+        // world.run_system(|res: &mut Resource1| {
+        //     res.0 += 10;
+        // });
+        world.run_system(sys);
+
+        let param = world.resource();
+        assert_eq!(param.0, 10);
+    }
 }

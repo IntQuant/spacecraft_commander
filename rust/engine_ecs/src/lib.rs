@@ -262,9 +262,8 @@ impl<Storage: DynDispath> World<Storage> {
         }
     }
 
-    pub fn run_system<'wrld: 'a, 'a>(&'wrld mut self, system: impl System<'wrld, 'a, Storage>) {
+    pub fn run_system(&mut self, system: impl System<Storage>) {
         let query_world = self.query_world();
-        //query_world.run_system(system);
         query_world.run_system(system);
     }
 }
@@ -331,10 +330,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
         self.inner.storage.storage().get_mut_unsafe()
     }
 
-    pub fn parameter<'a, Param: SystemParameter<'wrld, 'a, Storage>>(&'a self) -> Param
-    where
-        'wrld: 'a,
-    {
+    pub fn parameter<Param: SystemParameter<'wrld, Storage>>(&'wrld self) -> Param {
         let requests = Param::requests();
         for new_request in requests {
             for current_request in self.currently_requested.borrow().iter() {
@@ -351,7 +347,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
         unsafe { Param::from_world(self) }
     }
 
-    pub fn run_system<'a>(&'a self, system: impl System<'wrld, 'a, Storage>) {
+    pub fn run_system(&self, system: impl System<Storage>) {
         system.run(self)
     }
 }
