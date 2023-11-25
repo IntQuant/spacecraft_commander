@@ -287,3 +287,42 @@ pub fn gen_query_param_tuple_impls(input: TokenStream) -> TokenStream {
         }
     ).into()
 }
+
+/// ecs internal use
+#[proc_macro]
+pub fn gen_fn_system_impls(input: TokenStream) -> TokenStream {
+    let count = input
+        .into_iter()
+        .next()
+        .unwrap()
+        .to_string()
+        .parse::<usize>()
+        .unwrap();
+
+    let type_names = (0..count)
+        .map(|x| format_ident!("P{x}"))
+        .collect::<Vec<_>>();
+    let var_names = (0..count)
+        .map(|x| format_ident!("p{x}"))
+        .collect::<Vec<_>>();
+
+    quote!(
+        impl<'a, Storage, #(#type_names),*> System<'a, Storage> for fn(#(#type_names),*) -> ()
+        where
+            #(#type_names: SystemParameter<'a, Storage>,)*
+        {
+            fn requests() -> SmallVec<[ComponentRequests; 8]> {
+                let mut ret = SmallVec::default();
+                #(ret.extend(#type_names::requests());)*
+                ret
+            }
+
+            fn run(self, world: QueryWorld<'a, Storage>) {
+                #(let #var_names = world.parameter();)*
+                self(#(#var_names,)*)
+            }
+        }
+
+    )
+    .into()
+}

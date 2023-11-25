@@ -9,7 +9,7 @@ use crate::{
 
 /// # Safety
 ///
-/// Requests should cover all components that are accessed.
+/// Requests should cover all things that are accessed.
 pub unsafe trait SystemParameter<'a, Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]>;
     /// # Safety

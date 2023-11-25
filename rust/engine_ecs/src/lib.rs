@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
 use smallvec::SmallVec;
 use system_parameter::{ComponentRequests, SystemParameter};
+use systems::System;
 
 pub(crate) mod component_traits;
 mod ecs_cell;
 #[doc(hidden)]
 pub mod internal;
 pub(crate) mod system_parameter;
+pub(crate) mod systems;
 
 pub use crate::{
     component_traits::{Bundle, Component},
@@ -71,7 +73,7 @@ impl ArchetypeManager {
             .entities
             .len()
             .try_into()
-            .expect("No more than `InArchetypeId` expected per archetype");
+            .expect("no more than `InArchetypeId` expected per archetype");
         archetype_info.entities.push(entity);
         ret
     }
@@ -126,7 +128,7 @@ impl<Storage: DynDispath> World<Storage> {
                 .archetypes
                 .len()
                 .try_into()
-                .expect("Less archetypes than IDs"),
+                .expect("less archetypes than IDs"),
         );
         self.archeman
             .archetype_map
@@ -259,6 +261,11 @@ impl<Storage: DynDispath> World<Storage> {
             currently_requested: Default::default(),
         }
     }
+
+    pub fn run_system<'a, 'b: 'a>(&'b mut self, system: impl System<'a, Storage>) {
+        let query_world = self.query_world();
+        query_world.run_system(system)
+    }
 }
 
 pub struct QueryWorld<'a, Storage> {
@@ -338,5 +345,9 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         }
         // Safety: checked that requests are satisfied.
         unsafe { Param::from_world(self) }
+    }
+
+    pub fn run_system(&'a self, system: impl System<'a, Storage>) {
+        system.run(self)
     }
 }
