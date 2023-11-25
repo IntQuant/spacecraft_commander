@@ -262,18 +262,19 @@ impl<Storage: DynDispath> World<Storage> {
         }
     }
 
-    pub fn run_system<'a, 'b: 'a>(&'b mut self, system: impl System<'a, Storage>) {
+    pub fn run_system<'wrld: 'a, 'a>(&'wrld mut self, system: impl System<'wrld, 'a, Storage>) {
         let query_world = self.query_world();
-        query_world.run_system(system)
+        //query_world.run_system(system);
+        query_world.run_system(system);
     }
 }
 
-pub struct QueryWorld<'a, Storage> {
-    inner: &'a mut World<Storage>,
+pub struct QueryWorld<'wrld, Storage> {
+    inner: &'wrld mut World<Storage>,
     currently_requested: RefCell<SmallVec<[ComponentRequests; 8]>>,
 }
 
-impl<'a, Storage> QueryWorld<'a, Storage> {
+impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     /// # Safety
     ///
     /// Aliasing rules have to be upheld per StorageID and component type.
@@ -330,7 +331,10 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         self.inner.storage.storage().get_mut_unsafe()
     }
 
-    pub fn parameter<Param: SystemParameter<'a, Storage>>(&'a self) -> Param {
+    pub fn parameter<'a, Param: SystemParameter<'wrld, 'a, Storage>>(&'a self) -> Param
+    where
+        'wrld: 'a,
+    {
         let requests = Param::requests();
         for new_request in requests {
             for current_request in self.currently_requested.borrow().iter() {
@@ -347,7 +351,7 @@ impl<'a, Storage> QueryWorld<'a, Storage> {
         unsafe { Param::from_world(self) }
     }
 
-    pub fn run_system(&'a self, system: impl System<'a, Storage>) {
+    pub fn run_system<'a>(&'a self, system: impl System<'wrld, 'a, Storage>) {
         system.run(self)
     }
 }

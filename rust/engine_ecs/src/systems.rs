@@ -6,21 +6,21 @@ use crate::{
     QueryWorld,
 };
 
-pub trait System<'a, Storage> {
+pub trait System<'wrld: 'a, 'a, Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]>;
-    fn run(self, world: &'a QueryWorld<'a, Storage>);
+    fn run(self, world: &'a QueryWorld<'wrld, Storage>);
 }
 
-impl<'a, Storage, P0> System<'a, Storage> for fn(P0) -> ()
+impl<'wrld: 'a, 'a, Storage, P0> System<'wrld, 'a, Storage> for fn(P0) -> ()
 where
-    P0: SystemParameter<'a, Storage>,
+    P0: SystemParameter<'wrld, 'a, Storage>,
 {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
         P0::requests()
     }
 
-    fn run(self, world: &'a QueryWorld<'a, Storage>) {
-        let p0 = world.parameter();
+    fn run(self, world: &'a QueryWorld<'wrld, Storage>) {
+        let p0: P0 = world.parameter();
         self(p0);
     }
 }

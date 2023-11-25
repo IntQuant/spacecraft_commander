@@ -10,12 +10,12 @@ use crate::{
 /// # Safety
 ///
 /// Requests should cover all things that are accessed.
-pub unsafe trait SystemParameter<'a, Storage> {
+pub unsafe trait SystemParameter<'wrld: 'a, 'a, Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]>;
     /// # Safety
     ///
     /// Assumes that requests do not "collide" with each other.
-    unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self;
+    unsafe fn from_world(world: &'a QueryWorld<'wrld, Storage>) -> Self;
 }
 
 /// Query that is Generic over storage.
@@ -24,8 +24,8 @@ pub struct QueryG<'a, Storage, T: QueryParameter<'a, Storage>, Limits: QueryLimi
     _phantom: PhantomData<(T, Limits)>,
 }
 
-unsafe impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
-    SystemParameter<'a, Storage> for QueryG<'a, Storage, T, Limits>
+unsafe impl<'wrld: 'a, 'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
+    SystemParameter<'wrld, 'a, Storage> for QueryG<'a, Storage, T, Limits>
 {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
         let mut req_vec = SmallVec::new();
