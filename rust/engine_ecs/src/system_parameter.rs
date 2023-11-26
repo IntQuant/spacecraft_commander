@@ -19,13 +19,13 @@ pub unsafe trait SystemParameter<'a, Storage> {
 }
 
 /// Query that is Generic over storage.
-pub struct QueryG<'a, Storage, T: QueryParameter<'a, Storage>, Limits: QueryLimits = ()> {
-    world: &'a QueryWorld<'a, Storage>,
-    _phantom: PhantomData<(T, Limits)>,
+pub struct QueryG<'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits = ()> {
+    world: &'wrld QueryWorld<'wrld, Storage>,
+    _phantom: PhantomData<fn() -> (Param, Limits)>,
 }
 
-unsafe impl<'wrld: 'a, 'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
-    SystemParameter<'wrld, Storage> for QueryG<'a, Storage, T, Limits>
+unsafe impl<'wrld, T: QueryParameter<'wrld, Storage>, Limits: QueryLimits, Storage>
+    SystemParameter<'wrld, Storage> for QueryG<'wrld, Storage, T, Limits>
 {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
         let mut req_vec = SmallVec::new();
@@ -36,7 +36,7 @@ unsafe impl<'wrld: 'a, 'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, 
         req_vec
     }
 
-    unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self {
+    unsafe fn from_world(world: &'wrld QueryWorld<'wrld, Storage>) -> Self {
         QueryG {
             world,
             _phantom: PhantomData,
@@ -44,47 +44,59 @@ unsafe impl<'wrld: 'a, 'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, 
     }
 }
 
-impl<'a, T: QueryParameter<'a, Storage>, Limits: QueryLimits, Storage>
-    QueryG<'a, Storage, T, Limits>
+impl<'wrld, T, Limits, Storage> QueryG<'wrld, Storage, T, Limits>
+where
+    T: QueryParameter<'wrld, Storage>,
+    Limits: QueryLimits,
 {
-    pub fn iter<'b>(&'b mut self) -> impl Iterator<Item = T> + 'b + 'a
-    where
-        'b: 'a,
-    {
-        let mut req = ComponentRequests::default();
-        T::add_requests(&mut req);
-        Limits::add_requests(&mut req);
-
-        let world = &self.world;
-
-        world
-            .inner
-            .archeman
-            .archetypes
-            .iter()
-            .enumerate()
-            .filter(move |(_, arche)| req.satisfied_by(arche))
-            .flat_map(move |(arche_id, arche)| {
-                arche.entities.iter().map(move |ent_id| {
-                    let ent = world
-                        .inner
-                        .entities
-                        .get(*ent_id)
-                        .expect("entity exists, as it exists in archetype");
-                    let arche_id = arche_id as u32;
-                    assert_eq!(ent.archetype_id.0, arche_id);
-                    // SAFERY: invariant checked when Query was created.
-                    unsafe {
-                        T::get_from_world(
-                            world,
-                            ArchetypeID(arche_id),
-                            ent.in_archetype_id,
-                            *ent_id,
-                        )
-                    }
-                })
-            })
+    pub fn get(&mut self, ent: EntityID) -> Option<T> {
+        let ent_info = self.world.inner.entities.get(ent)?;
+        // SAFERY: invariant checked when Query was created.
+        Some(unsafe {
+            T::get_from_world(
+                self.world,
+                ent_info.archetype_id,
+                ent_info.in_archetype_id,
+                ent,
+            )
+        })
     }
+
+    // pub fn iter(&'a mut self) -> impl Iterator<Item = T> + 'a {
+    //     let mut req = ComponentRequests::default();
+    //     T::add_requests(&mut req);
+    //     Limits::add_requests(&mut req);
+
+    //     let world = &self.world;
+
+    //     world
+    //         .inner
+    //         .archeman
+    //         .archetypes
+    //         .iter()
+    //         .enumerate()
+    //         .filter(move |(_, arche)| req.satisfied_by(arche))
+    //         .flat_map(move |(arche_id, arche)| {
+    //             arche.entities.iter().map(move |ent_id| {
+    //                 let ent = world
+    //                     .inner
+    //                     .entities
+    //                     .get(*ent_id)
+    //                     .expect("entity exists, as it exists in archetype");
+    //                 let arche_id = arche_id as u32;
+    //                 assert_eq!(ent.archetype_id.0, arche_id);
+    //                 // SAFERY: invariant checked when Query was created.
+    //                 unsafe {
+    //                     T::get_from_world(
+    //                         world,
+    //                         ArchetypeID(arche_id),
+    //                         ent.in_archetype_id,
+    //                         *ent_id,
+    //                     )
+    //                 }
+    //             })
+    //         })
+    // }
 }
 
 #[derive(Debug)]
@@ -295,7 +307,7 @@ pub unsafe trait QueryParameter<'wrld, Storage> {
     ) -> Self;
 }
 
-unsafe impl<Storage> QueryParameter<'_, Storage> for EntityID {
+unsafe impl<'wrld, Storage> QueryParameter<'wrld, Storage> for EntityID {
     fn add_requests(_req: &mut ComponentRequests) {}
 
     unsafe fn get_from_world(

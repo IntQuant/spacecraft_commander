@@ -139,13 +139,13 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 }
             }
 
-            unsafe impl<'a> ::engine_ecs::internal::QueryParameter<'a, ComponentStorage> for &'a #component_types {
+            unsafe impl<'wrld> ::engine_ecs::internal::QueryParameter<'wrld, ComponentStorage> for &'wrld #component_types {
                 fn add_requests(req: &mut ::engine_ecs::internal::ComponentRequests) {
                     req.request(#counter3, false);
                     req.require(#counter3);
                 }
                 unsafe fn get_from_world(
-                    world: &'a ::engine_ecs::QueryWorld<'a, ComponentStorage>,
+                    world: &'wrld ::engine_ecs::QueryWorld<'wrld, ComponentStorage>,
                     archetype: ::engine_ecs::ArchetypeID,
                     index: ::engine_ecs::internal::InArchetypeId,
                     _ent_id: ::engine_ecs::EntityID,
@@ -155,13 +155,13 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 }
             }
 
-            unsafe impl<'a> ::engine_ecs::internal::QueryParameter<'a, ComponentStorage> for &'a mut #component_types {
+            unsafe impl<'wrld> ::engine_ecs::internal::QueryParameter<'wrld, ComponentStorage> for &'wrld mut #component_types {
                 fn add_requests(req: &mut ::engine_ecs::internal::ComponentRequests) {
                     req.request(#counter3, true);
                     req.require(#counter3);
                 }
                 unsafe fn get_from_world(
-                    world: &'a ::engine_ecs::QueryWorld<'a, ComponentStorage>,
+                    world: &'wrld ::engine_ecs::QueryWorld<'wrld, ComponentStorage>,
                     archetype: ::engine_ecs::ArchetypeID,
                     index: ::engine_ecs::internal::InArchetypeId,
                     _ent_id: ::engine_ecs::EntityID,
@@ -263,14 +263,14 @@ pub fn gen_query_param_tuple_impls(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote!(
-        unsafe impl<'a, Storage, #(#type_names: QueryParameter<'a, Storage>,)*> QueryParameter<'a, Storage> for (#(#type_names,)*)
+        unsafe impl<'wrld, Storage, #(#type_names: QueryParameter<'wrld, Storage>,)*> QueryParameter<'wrld, Storage> for (#(#type_names,)*)
         {
             fn add_requests(req: &mut ComponentRequests) {
                 #(#type_names::add_requests(req);)*
             }
 
             unsafe fn get_from_world(
-                world: &'a QueryWorld<'a, Storage>,
+                world: &'wrld QueryWorld<'wrld, Storage>,
                 archetype: ArchetypeID,
                 index: InArchetypeId,
                 ent_id: EntityID,
@@ -323,6 +323,39 @@ pub fn gen_fn_system_impls(input: TokenStream) -> TokenStream {
             }
         }
 
+    )
+    .into()
+}
+
+/// ecs internal use
+#[proc_macro]
+pub fn gen_world_run_impls(input: TokenStream) -> TokenStream {
+    let count = input
+        .into_iter()
+        .next()
+        .unwrap()
+        .to_string()
+        .parse::<usize>()
+        .unwrap();
+
+    let type_names = (0..count)
+        .map(|x| format_ident!("P{x}"))
+        .collect::<Vec<_>>();
+    let var_names = (0..count)
+        .map(|x| format_ident!("p{x}"))
+        .collect::<Vec<_>>();
+
+    quote!(
+        impl<'wrld, Storage, F, #(#type_names,)*> WorldRun<'wrld, F, (#(#type_names,)*)> for QueryWorld<'wrld, Storage>
+        where
+            F: FnOnce(#(#type_names),*),
+            #(#type_names: SystemParameter<'wrld, Storage>,)*
+        {
+            fn run(&'wrld self, f: F) {
+                #( let #var_names = self.parameter(); )*
+                f(#(#var_names),*)
+            }
+        }
     )
     .into()
 }

@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap};
 
+use engine_macro::gen_world_run_impls;
 use internal::{ComponentStorageProvider, DynDispath, OfResources, ResourceStorageProvider};
 use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
@@ -11,12 +12,10 @@ mod ecs_cell;
 #[doc(hidden)]
 pub mod internal;
 pub(crate) mod system_parameter;
-pub(crate) mod systems;
 
 pub use crate::{
     component_traits::{Bundle, Component},
     system_parameter::{QueryG, WithG, WithoutG},
-    systems::System,
 };
 
 new_key_type! { pub struct EntityID; }
@@ -341,16 +340,16 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
         // Safety: checked that requests are satisfied.
         unsafe { Param::from_world(self) }
     }
-
-    pub fn run_with_param<P0>(&'wrld self, f: impl FnOnce(P0))
-    where
-        P0: SystemParameter<'wrld, Storage>,
-    {
-        let p0 = self.parameter();
-        f(p0)
-    }
-
-    pub fn run_system(&'wrld self, system: impl System<'wrld, Storage>) {
-        system.run(&self)
-    }
 }
+
+pub trait WorldRun<'wrld, F, P> {
+    fn run(&'wrld self, f: F);
+}
+
+gen_world_run_impls!(0);
+gen_world_run_impls!(1);
+gen_world_run_impls!(2);
+gen_world_run_impls!(3);
+gen_world_run_impls!(4);
+gen_world_run_impls!(5);
+gen_world_run_impls!(6);
