@@ -146,101 +146,101 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn query_basic() {
-    //     let mut world = World::<ComponentStorage>::new();
-    //     world.spawn((Component1(0), Component2(1), Component3(2)));
-    //     let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
-    //     world.spawn((Component1(6), Component2(7)));
+    #[test]
+    fn query_basic() {
+        let mut world = World::<ComponentStorage>::new();
+        world.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
+        world.spawn((Component1(6), Component2(7)));
 
-    //     let query_world = world.query_world();
+        let query_world = world.query_world();
 
-    //     let mut query: Query<&Component1> = query_world.parameter();
-    //     let res = query.iter().collect::<Vec<_>>();
-    //     assert_eq!(res.len(), 3);
-    //     assert_eq!(*res[0], Component1(0));
-    //     assert_eq!(*res[1], Component1(3));
-    //     assert_eq!(*res[2], Component1(6));
+        let mut query: Query<&Component1> = query_world.parameter();
+        let res = query.iter().collect::<Vec<_>>();
+        assert_eq!(res.len(), 3);
+        assert_eq!(*res[0], Component1(0));
+        assert_eq!(*res[1], Component1(3));
+        assert_eq!(*res[2], Component1(6));
 
-    //     let mut query: Query<(&Component1, &Component3, EntityID)> = query_world.parameter();
-    //     let res = query.iter().collect::<Vec<_>>();
-    //     assert_eq!(res.len(), 2);
-    //     assert_eq!(*res[0].0, Component1(0));
-    //     assert_eq!(*res[1].0, Component1(3));
-    //     assert_eq!(*res[0].1, Component3(2));
-    //     assert_eq!(*res[1].1, Component3(5));
-    //     assert_eq!(res[1].2, ent2);
-    // }
+        let mut query: Query<(&Component1, &Component3, EntityID)> = query_world.parameter();
+        let res = query.iter().collect::<Vec<_>>();
+        assert_eq!(res.len(), 2);
+        assert_eq!(*res[0].0, Component1(0));
+        assert_eq!(*res[1].0, Component1(3));
+        assert_eq!(*res[0].1, Component3(2));
+        assert_eq!(*res[1].1, Component3(5));
+        assert_eq!(res[1].2, ent2);
+    }
 
-    // #[test]
-    // fn query_mut() {
-    //     let mut world = World::<ComponentStorage>::new();
-    //     let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
-    //     let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
-    //     let ent3 = world.spawn((Component1(6), Component2(7)));
+    #[test]
+    fn query_mut() {
+        let mut world = World::<ComponentStorage>::new();
+        let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
+        let ent3 = world.spawn((Component1(6), Component2(7)));
 
-    //     let query_world = world.query_world();
+        let query_world = world.query_world();
 
-    //     let mut query: Query<&mut Component1> = query_world.parameter();
-    //     for component in query.iter() {
-    //         component.0 += 1;
-    //     }
+        let mut query: Query<&mut Component1> = query_world.parameter();
+        for component in query.iter() {
+            component.0 += 1;
+        }
 
-    //     assert_eq!(world.get::<Component1>(ent1).unwrap().0, 1);
-    //     assert_eq!(world.get::<Component1>(ent2).unwrap().0, 4);
-    //     assert_eq!(world.get::<Component1>(ent3).unwrap().0, 7);
-    // }
+        assert_eq!(world.get::<Component1>(ent1).unwrap().0, 1);
+        assert_eq!(world.get::<Component1>(ent2).unwrap().0, 4);
+        assert_eq!(world.get::<Component1>(ent3).unwrap().0, 7);
+    }
 
-    // #[test]
-    // #[should_panic(expected = "are incompatible")]
-    // fn query_incompatible_1() {
-    //     let mut world = World::<ComponentStorage>::new();
-    //     world.spawn((Component1(0), Component2(1), Component3(2)));
-    //     world.spawn((Component1(3), Component2(4), Component3(5)));
-    //     world.spawn((Component1(6), Component2(7)));
+    #[test]
+    #[should_panic(expected = "are incompatible")]
+    fn query_incompatible_1() {
+        let mut world = World::<ComponentStorage>::new();
+        world.spawn((Component1(0), Component2(1), Component3(2)));
+        world.spawn((Component1(3), Component2(4), Component3(5)));
+        world.spawn((Component1(6), Component2(7)));
 
-    //     let query_world = world.query_world();
+        let query_world = world.query_world();
 
-    //     let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
-    //     let _query2: Query<(&Component1, &Component2)> = query_world.parameter();
-    // }
+        let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
+        let _query2: Query<(&Component1, &Component2)> = query_world.parameter();
+    }
 
-    // #[test]
-    // #[should_panic(expected = "are incompatible")]
-    // fn query_incompatible_2() {
-    //     let mut world = World::<ComponentStorage>::new();
-    //     world.spawn((Component1(0), Component2(1), Component3(2)));
-    //     world.spawn((Component1(3), Component2(4), Component3(5)));
-    //     world.spawn((Component1(6), Component2(7)));
+    #[test]
+    #[should_panic(expected = "are incompatible")]
+    fn query_incompatible_2() {
+        let mut world = World::<ComponentStorage>::new();
+        world.spawn((Component1(0), Component2(1), Component3(2)));
+        world.spawn((Component1(3), Component2(4), Component3(5)));
+        world.spawn((Component1(6), Component2(7)));
 
-    //     let query_world = world.query_world();
+        let query_world = world.query_world();
 
-    //     let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
-    //     let _query2: Query<(&mut Component1, &Component2)> = query_world.parameter();
-    // }
+        let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
+        let _query2: Query<(&mut Component1, &Component2)> = query_world.parameter();
+    }
 
-    // #[test]
-    // fn query_disjoint() {
-    //     let mut world = World::<ComponentStorage>::new();
-    //     let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
-    //     let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
-    //     let ent3 = world.spawn((Component1(6), Component2(7)));
+    #[test]
+    fn query_disjoint() {
+        let mut world = World::<ComponentStorage>::new();
+        let ent1 = world.spawn((Component1(0), Component2(1), Component3(2)));
+        let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
+        let ent3 = world.spawn((Component1(6), Component2(7)));
 
-    //     let query_world = world.query_world();
+        let query_world = world.query_world();
 
-    //     let mut query1: Query<&mut Component1, With<Component3>> = query_world.parameter();
-    //     let mut query2: Query<&mut Component1, Without<Component3>> = query_world.parameter();
-    //     for component in query1.iter() {
-    //         component.0 += 3;
-    //     }
-    //     for component in query2.iter() {
-    //         component.0 += 6;
-    //     }
+        let mut query1: Query<&mut Component1, With<Component3>> = query_world.parameter();
+        let mut query2: Query<&mut Component1, Without<Component3>> = query_world.parameter();
+        for component in query1.iter() {
+            component.0 += 3;
+        }
+        for component in query2.iter() {
+            component.0 += 6;
+        }
 
-    //     assert_eq!(world.get::<Component1>(ent1).unwrap().0, 3);
-    //     assert_eq!(world.get::<Component1>(ent2).unwrap().0, 6);
-    //     assert_eq!(world.get::<Component1>(ent3).unwrap().0, 12);
-    // }
+        assert_eq!(world.get::<Component1>(ent1).unwrap().0, 3);
+        assert_eq!(world.get::<Component1>(ent2).unwrap().0, 6);
+        assert_eq!(world.get::<Component1>(ent3).unwrap().0, 12);
+    }
 
     #[test]
     fn resource() {
