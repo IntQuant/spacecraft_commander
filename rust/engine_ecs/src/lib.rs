@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use slotmapd::new_key_type;
 use smallvec::SmallVec;
 use system_parameter::{ComponentRequests, SystemParameter};
-use systems::System;
 
 pub(crate) mod component_traits;
 mod ecs_cell;
@@ -17,6 +16,7 @@ pub(crate) mod systems;
 pub use crate::{
     component_traits::{Bundle, Component},
     system_parameter::{QueryG, WithG, WithoutG},
+    systems::System,
 };
 
 new_key_type! { pub struct EntityID; }
@@ -261,11 +261,6 @@ impl<Storage: DynDispath> World<Storage> {
             currently_requested: Default::default(),
         }
     }
-
-    pub fn run_system(&mut self, system: impl System<Storage>) {
-        let query_world = self.query_world();
-        query_world.run_system(system);
-    }
 }
 
 pub struct QueryWorld<'wrld, Storage> {
@@ -347,7 +342,15 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
         unsafe { Param::from_world(self) }
     }
 
-    pub fn run_system(&self, system: impl System<Storage>) {
-        system.run(self)
+    pub fn run_with_param<P0>(&'wrld self, f: impl FnOnce(P0))
+    where
+        P0: SystemParameter<'wrld, Storage>,
+    {
+        let p0 = self.parameter();
+        f(p0)
+    }
+
+    pub fn run_system(&'wrld self, system: impl System<'wrld, Storage>) {
+        system.run(&self)
     }
 }

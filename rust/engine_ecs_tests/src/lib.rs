@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use engine_ecs::{EntityID, World};
+    use engine_ecs::{EntityID, System, World};
     use engine_macro::gen_storage_for_world;
     use serde::{Deserialize, Serialize};
 
@@ -282,9 +282,11 @@ mod tests {
         // world.run_system(|res: &mut Resource1| {
         //     res.0 += 10;
         // });
-        world.run_system(sys);
+        let query_world = world.query_world();
+        //query_world.run_with_param(|res: &mut Resource1| res.0 += 5);
+        query_world.run_system(sys as fn(_));
 
         let param = world.resource();
-        assert_eq!(param.0, 10);
+        assert_eq!(param.0, 25);
     }
 }

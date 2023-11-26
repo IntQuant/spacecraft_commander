@@ -6,12 +6,12 @@ use crate::{
     QueryWorld,
 };
 
-pub trait System<Storage> {
+pub trait System<'a, Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]>;
-    fn run(self, world: &QueryWorld<Storage>);
+    fn run(self, world: &'a QueryWorld<Storage>);
 }
 
-impl<Storage, P0> System<Storage> for fn(P0) -> ()
+impl<'a, Storage, P0> System<'a, Storage> for fn(P0) -> ()
 where
     P0: SystemParameter<'a, Storage>,
 {
@@ -19,7 +19,7 @@ where
         P0::requests()
     }
 
-    fn run(self, world: &QueryWorld<Storage>) {
+    fn run(self, world: &'a QueryWorld<Storage>) {
         let p0: P0 = world.parameter();
         self(p0);
     }
