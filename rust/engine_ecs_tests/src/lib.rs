@@ -279,9 +279,10 @@ mod tests {
             res.0 += 10;
         }
         fn sys2<'a>(res: &mut Resource1, mut query: Query<'a, &'a Component2>) {
-            for com2 in query.iter() {
-                res.0 += com2.0;
-            }
+            query.iter2();
+            // for com2 in query.iter() {
+            //     res.0 += com2.0;
+            // }
         }
         let mut world = World::<ComponentStorage>::new();
         let ent1 = world.spawn((Component1(5), Component2(1), Component3(2)));

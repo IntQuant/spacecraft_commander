@@ -44,6 +44,10 @@ unsafe impl<'wrld, T: QueryParameter<'wrld, Storage>, Limits: QueryLimits, Stora
     }
 }
 
+pub struct QueryIter<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits>(
+    &'a mut QueryG<'wrld, Storage, Param, Limits>,
+);
+
 impl<'wrld, T, Limits, Storage> QueryG<'wrld, Storage, T, Limits>
 where
     T: QueryParameter<'wrld, Storage>,
@@ -60,6 +64,10 @@ where
                 ent,
             )
         })
+    }
+
+    pub fn iter2(&mut self) -> QueryIter<'_, 'wrld, Storage, T, Limits> {
+        QueryIter(self)
     }
 
     pub fn iter(&'wrld mut self) -> impl Iterator<Item = T> + 'wrld {
