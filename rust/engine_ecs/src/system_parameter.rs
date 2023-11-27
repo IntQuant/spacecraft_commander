@@ -135,42 +135,6 @@ where
         query_iter.skip_to_valid_arche();
         query_iter
     }
-
-    pub fn iter_old(&'wrld mut self) -> impl Iterator<Item = T> + 'wrld {
-        let mut req = ComponentRequests::default();
-        T::add_requests(&mut req);
-        Limits::add_requests(&mut req);
-
-        let world = &self.world;
-
-        world
-            .inner
-            .archeman
-            .archetypes
-            .iter()
-            .enumerate()
-            .filter(move |(_, arche)| req.satisfied_by(arche))
-            .flat_map(move |(arche_id, arche)| {
-                arche.entities.iter().map(move |ent_id| {
-                    let ent = world
-                        .inner
-                        .entities
-                        .get(*ent_id)
-                        .expect("entity exists, as it exists in archetype");
-                    let arche_id = arche_id as u32;
-                    assert_eq!(ent.archetype_id.0, arche_id);
-                    // SAFERY: invariant checked when Query was created.
-                    unsafe {
-                        T::get_from_world(
-                            world,
-                            ArchetypeID(arche_id),
-                            ent.in_archetype_id,
-                            *ent_id,
-                        )
-                    }
-                })
-            })
-    }
 }
 
 #[derive(Debug)]
