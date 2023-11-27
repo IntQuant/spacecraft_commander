@@ -4,7 +4,7 @@ use engine_macro::gen_query_param_tuple_impls;
 use smallvec::SmallVec;
 
 use crate::{
-    ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeId, QueryWorld, TypeIndex,
+    ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeID, QueryWorld, TypeIndex,
 };
 
 /// # Safety
@@ -44,9 +44,69 @@ unsafe impl<'wrld, T: QueryParameter<'wrld, Storage>, Limits: QueryLimits, Stora
     }
 }
 
-pub struct QueryIter<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits>(
-    &'a mut QueryG<'wrld, Storage, Param, Limits>,
-);
+pub struct QueryIter<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits>
+{
+    query: &'a mut QueryG<'wrld, Storage, Param, Limits>,
+    arche_index: ArchetypeID,
+    in_arche_index: InArchetypeID,
+}
+
+impl<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits>
+    QueryIter<'a, 'wrld, Storage, Param, Limits>
+{
+    fn skip_to_valid_arche(&mut self) {
+        let mut req = ComponentRequests::default();
+        Param::add_requests(&mut req);
+        Limits::add_requests(&mut req);
+
+        while let Some(arche) = self
+            .query
+            .world
+            .inner
+            .archeman
+            .archetypes
+            .get(self.arche_index.0 as usize)
+        {
+            if !arche.entities.is_empty() && req.satisfied_by(arche) {
+                break;
+            } else {
+                self.arche_index.0 += 1;
+            }
+        }
+    }
+}
+
+impl<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits> Iterator
+    for QueryIter<'a, 'wrld, Storage, Param, Limits>
+{
+    type Item = Param;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let archeman = &self.query.world.inner.archeman;
+        if self.arche_index.0 as usize >= archeman.archetypes.len() {
+            return None;
+        }
+        let ent_id =
+            archeman.archetypes[self.arche_index.0 as usize].entities[self.in_arche_index as usize];
+
+        let param = unsafe {
+            Param::get_from_world(
+                self.query.world,
+                self.arche_index,
+                self.in_arche_index,
+                ent_id,
+            )
+        };
+        self.in_arche_index += 1;
+        if self.in_arche_index >= archeman.archetypes[self.arche_index.0 as usize].len() {
+            self.in_arche_index = 0;
+            self.arche_index.0 += 1;
+            self.skip_to_valid_arche();
+        }
+
+        Some(param)
+    }
+}
 
 impl<'wrld, T, Limits, Storage> QueryG<'wrld, Storage, T, Limits>
 where
@@ -66,11 +126,17 @@ where
         })
     }
 
-    pub fn iter2(&mut self) -> QueryIter<'_, 'wrld, Storage, T, Limits> {
-        QueryIter(self)
+    pub fn iter(&mut self) -> QueryIter<'_, 'wrld, Storage, T, Limits> {
+        let mut query_iter = QueryIter {
+            query: self,
+            arche_index: ArchetypeID(0),
+            in_arche_index: 0,
+        };
+        query_iter.skip_to_valid_arche();
+        query_iter
     }
 
-    pub fn iter(&'wrld mut self) -> impl Iterator<Item = T> + 'wrld {
+    pub fn iter_old(&'wrld mut self) -> impl Iterator<Item = T> + 'wrld {
         let mut req = ComponentRequests::default();
         T::add_requests(&mut req);
         Limits::add_requests(&mut req);
@@ -310,7 +376,7 @@ pub unsafe trait QueryParameter<'wrld, Storage> {
     unsafe fn get_from_world(
         world: &'wrld QueryWorld<'wrld, Storage>,
         archetype: ArchetypeID,
-        index: InArchetypeId,
+        index: InArchetypeID,
         ent_id: EntityID,
     ) -> Self;
 }
@@ -321,7 +387,7 @@ unsafe impl<'wrld, Storage> QueryParameter<'wrld, Storage> for EntityID {
     unsafe fn get_from_world(
         _world: &QueryWorld<Storage>,
         _archetype: ArchetypeID,
-        _index: InArchetypeId,
+        _index: InArchetypeID,
         ent_id: EntityID,
     ) -> Self {
         ent_id

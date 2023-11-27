@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use std::mem;
-
-    use engine_ecs::{EntityID, QueryG, World, WorldRun};
+    use engine_ecs::{EntityID, World, WorldRun};
     use engine_macro::gen_storage_for_world;
     use serde::{Deserialize, Serialize};
 
@@ -279,13 +277,12 @@ mod tests {
             res.0 += 10;
         }
         fn sys2<'a>(res: &mut Resource1, mut query: Query<'a, &'a Component2>) {
-            query.iter2();
-            // for com2 in query.iter() {
-            //     res.0 += com2.0;
-            // }
+            for com2 in query.iter() {
+                res.0 += com2.0;
+            }
         }
         let mut world = World::<ComponentStorage>::new();
-        let ent1 = world.spawn((Component1(5), Component2(1), Component3(2)));
+        world.spawn((Component1(5), Component2(1), Component3(2)));
 
         let query_world = world.query_world();
         query_world.run(sys2);
@@ -294,6 +291,6 @@ mod tests {
         query_world.run(sys);
 
         let param = world.resource();
-        assert_eq!(param.0, 15);
+        assert_eq!(param.0, 11);
     }
 }

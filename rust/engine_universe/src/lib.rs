@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use engine_ecs::World;
-use engine_macro::gen_storage_for_world;
 use engine_num::Vec3;
 use indexmap::IndexMap;
 use mcs::{

@@ -147,7 +147,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 unsafe fn get_from_world(
                     world: &'wrld ::engine_ecs::QueryWorld<'wrld, ComponentStorage>,
                     archetype: ::engine_ecs::ArchetypeID,
-                    index: ::engine_ecs::internal::InArchetypeId,
+                    index: ::engine_ecs::internal::InArchetypeID,
                     _ent_id: ::engine_ecs::EntityID,
                 ) -> Self {
                     let storage = world.storage_for_archetype::<#component_types>(archetype).expect("component assumed to exist, as we've asked for it");
@@ -163,7 +163,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 unsafe fn get_from_world(
                     world: &'wrld ::engine_ecs::QueryWorld<'wrld, ComponentStorage>,
                     archetype: ::engine_ecs::ArchetypeID,
-                    index: ::engine_ecs::internal::InArchetypeId,
+                    index: ::engine_ecs::internal::InArchetypeID,
                     _ent_id: ::engine_ecs::EntityID,
                 ) -> Self {
                     let storage = world.storage_for_archetype::<#component_types>(archetype).expect("component assumed to exist, as we've asked for it");
@@ -272,7 +272,7 @@ pub fn gen_query_param_tuple_impls(input: TokenStream) -> TokenStream {
             unsafe fn get_from_world(
                 world: &'wrld QueryWorld<'wrld, Storage>,
                 archetype: ArchetypeID,
-                index: InArchetypeId,
+                index: InArchetypeID,
                 ent_id: EntityID,
             ) -> Self {
                 (#(#type_names::get_from_world(world, archetype, index, ent_id),)*)

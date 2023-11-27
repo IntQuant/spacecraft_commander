@@ -43,18 +43,23 @@ pub trait LocalTypeIndex<T> {
     const TYPE_INDEX: TypeIndex;
 }
 
-pub type InArchetypeId = u32;
+pub type InArchetypeID = u32;
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 struct EntityInfo {
     pub archetype_id: ArchetypeID,
-    pub in_archetype_id: InArchetypeId,
+    pub in_archetype_id: InArchetypeID,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 struct ArchetypeInfo {
     entities: Vec<EntityID>,
     component_slots: Box<[(TypeIndex, StorageID)]>,
+}
+impl ArchetypeInfo {
+    fn len(&self) -> InArchetypeID {
+        self.entities.len() as InArchetypeID
+    }
 }
 
 type TypeBox = Box<[TypeIndex]>;
@@ -66,7 +71,7 @@ struct ArchetypeManager {
 }
 
 impl ArchetypeManager {
-    fn register_entity(&mut self, archetype: ArchetypeID, entity: EntityID) -> InArchetypeId {
+    fn register_entity(&mut self, archetype: ArchetypeID, entity: EntityID) -> InArchetypeID {
         let archetype_info = &mut self.archetypes[archetype.0 as usize];
         let ret = archetype_info
             .entities
@@ -274,7 +279,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     pub unsafe fn get<T: Component<Storage>>(
         &self,
         storage: StorageID,
-        index_in_arche: InArchetypeId,
+        index_in_arche: InArchetypeID,
     ) -> Option<&T>
     where
         Storage: ComponentStorageProvider<T>,
@@ -287,7 +292,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     pub unsafe fn get_mut<T>(
         &self,
         storage: StorageID,
-        index_in_arche: InArchetypeId,
+        index_in_arche: InArchetypeID,
     ) -> Option<&mut T>
     where
         Storage: ComponentStorageProvider<T>,

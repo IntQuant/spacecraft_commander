@@ -4,7 +4,7 @@ use crate::{ecs_cell::EcsCell, StorageID, TypeIndex};
 
 pub use crate::component_traits::TypeIndexStorage;
 pub use crate::system_parameter::{ComponentRequests, QueryParameter, SystemParameter};
-pub use crate::InArchetypeId;
+pub use crate::InArchetypeID;
 pub use smallvec::SmallVec;
 
 pub trait ComponentStorageProvider<T> {
@@ -20,7 +20,7 @@ pub trait DynDispath {
 
 pub trait DynComponentList {
     fn allocate(&mut self) -> StorageID;
-    fn swap_remove(&mut self, storage: StorageID, index: InArchetypeId);
+    fn swap_remove(&mut self, storage: StorageID, index: InArchetypeID);
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ impl<T> ComponentList<T> {
     pub(crate) fn add_to_storage(&mut self, storage: StorageID, component: T) {
         self.list[storage.0 as usize].get_mut().push(component)
     }
-    pub(crate) fn get(&self, storage: StorageID, index_in_arche: InArchetypeId) -> Option<&T> {
+    pub(crate) fn get(&self, storage: StorageID, index_in_arche: InArchetypeID) -> Option<&T> {
         self.list[storage.0 as usize]
             .get()
             .get(index_in_arche as usize)
@@ -40,7 +40,7 @@ impl<T> ComponentList<T> {
     pub(crate) fn get_mut(
         &mut self,
         storage: StorageID,
-        index_in_arche: InArchetypeId,
+        index_in_arche: InArchetypeID,
     ) -> Option<&mut T> {
         self.list[storage.0 as usize]
             .get_mut()
@@ -49,7 +49,7 @@ impl<T> ComponentList<T> {
     pub(crate) unsafe fn get_mut_unsafe(
         &self,
         storage: StorageID,
-        index_in_arche: InArchetypeId,
+        index_in_arche: InArchetypeID,
     ) -> Option<&mut T> {
         unsafe {
             self.list[storage.0 as usize]
@@ -70,7 +70,7 @@ impl<T> DynComponentList for ComponentList<T> {
         self.list.push(EcsCell::new(Vec::new()));
         ret
     }
-    fn swap_remove(&mut self, storage: StorageID, index: InArchetypeId) {
+    fn swap_remove(&mut self, storage: StorageID, index: InArchetypeID) {
         self.list[storage.0 as usize]
             .get_mut()
             .swap_remove(index as usize);
