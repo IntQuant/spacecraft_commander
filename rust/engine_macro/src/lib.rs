@@ -76,7 +76,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
 
     quote!(
         #[derive(Default, Clone)]
-        #[derive(Serialize, Deserialize)]
+        #[derive(::serde::Serialize, ::serde::Deserialize)]
         pub struct ComponentStorage {
             #( #component_storages ,)*
             #(#resource_storage_names: ::engine_ecs::internal::ResourceStorage<#resource_types>,)*
@@ -134,7 +134,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                     ::engine_ecs::internal::TypeIndexStorage::from_elem(#counter2, 1)
                 }
 
-                fn add_to_archetype_in_storage(self, world: &mut World<ComponentStorage>, archetype: ::engine_ecs::ArchetypeID) {
+                fn add_to_archetype_in_storage(self, world: &mut ::engine_ecs::World<ComponentStorage>, archetype: ::engine_ecs::ArchetypeID) {
                     world.add_bundle_to_archetype(archetype, self)
                 }
             }

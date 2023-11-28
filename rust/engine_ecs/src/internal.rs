@@ -23,9 +23,17 @@ pub trait DynComponentList {
     fn swap_remove(&mut self, storage: StorageID, index: InArchetypeID);
 }
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ComponentList<T> {
     list: Vec<EcsCell<Vec<T>>>,
+}
+
+impl<T> Default for ComponentList<T> {
+    fn default() -> Self {
+        Self {
+            list: Default::default(),
+        }
+    }
 }
 
 impl<T> ComponentList<T> {
