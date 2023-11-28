@@ -322,6 +322,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     /// # Safety
     ///
     /// See `resource` method.
+    #[allow(clippy::mut_from_ref)]
     pub unsafe fn resource_mut<R>(&self) -> &mut R
     where
         Storage: ResourceStorageProvider<R>,

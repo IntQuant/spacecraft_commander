@@ -42,10 +42,7 @@ impl BuildingFacing {
     }
     pub fn turn(&self, key: u8, current: u8) -> Self {
         let transitions = self.transitions();
-        let is_y = match self {
-            BuildingFacing::Py | BuildingFacing::Ny => true,
-            _ => false,
-        };
+        let is_y = matches!(self, BuildingFacing::Py | BuildingFacing::Ny);
         if is_y {
             transitions[((key + 4 - current) % 4) as usize]
         } else {

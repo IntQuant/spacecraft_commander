@@ -102,6 +102,7 @@ impl<T> ResourceStorage<T> {
     pub(crate) fn get_mut(&mut self) -> &mut T {
         self.inner.get_mut()
     }
+    #[allow(clippy::mut_from_ref)]
     pub(crate) unsafe fn get_mut_unsafe(&self) -> &mut T {
         unsafe { self.inner.get_mut_unsafe() }
     }

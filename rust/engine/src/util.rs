@@ -24,13 +24,13 @@ impl ToGodot for Vec3 {
     type Output = Vector3;
 
     fn to_godot(&self) -> Self::Output {
-        Vector3::new(self.x.into(), self.y.into(), self.z.into())
+        Vector3::new(self.x, self.y, self.z)
     }
 }
 
 impl FromGodot<Vector3> for Vec3 {
     fn from_godot(val: Vector3) -> Self {
-        Vec3::new(val.x.into(), val.y.into(), val.z.into())
+        Vec3::new(val.x, val.y, val.z)
     }
 }
 
