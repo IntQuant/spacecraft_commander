@@ -1,9 +1,11 @@
 use std::time::Duration;
 
+use engine_ecs::{World, WorldRun};
 use engine_num::Vec3;
 use indexmap::IndexMap;
 use mcs::{
-    events::system_handle_pending_events, DefaultVesselRes, Player, PlayerID, VesselID, VesselTiles,
+    events::system_handle_pending_events, ComponentStorage, DefaultVesselRes, PendingEventsRes,
+    Player, PlayerID, VesselID, VesselTiles,
 };
 use serde::{Deserialize, Serialize};
 use slotmapd::HopSlotMap;
@@ -26,10 +28,10 @@ pub mod mcs;
 /// Deterministic - same sequence of events and updates(steps) should result in same state.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Universe {
-    pending_events: Vec<OwnedUniverseEvent>,
-    pub players: IndexMap<PlayerID, Player>,
-    pub vessels: HopSlotMap<VesselID, VesselTiles>,
-
+    //pending_events: Vec<OwnedUniverseEvent>,
+    world: World<ComponentStorage>,
+    //pub players: IndexMap<PlayerID, Player>,
+    //pub vessels: HopSlotMap<VesselID, VesselTiles>,
     pub default_vessel: DefaultVesselRes,
 }
 
@@ -57,16 +59,21 @@ impl UpdateCtx<'_> {
     }
 
     pub fn process_event(&mut self, event: OwnedUniverseEvent) {
-        self.universe.pending_events.push(event);
+        self.universe
+            .world
+            .resource_mut::<PendingEventsRes>()
+            .0
+            .push(event);
     }
 
     pub fn step(&mut self) {
-        let universe = &mut self.universe;
         let evctx = &mut self.evctx;
 
-        system_handle_pending_events(universe, evctx);
+        let world = &mut self.universe.world;
+        world.query_world().run(system_handle_pending_events);
+        //system_handle_pending_events(universe, evctx);
 
-        self.universe.pending_events.clear();
+        //self.universe.pending_events.clear();
     }
 }
 

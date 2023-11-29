@@ -74,6 +74,8 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let counter_resources = 0..(resource_names.len() as u32);
     let counter_resources_2 = 0..(resource_names.len() as u32);
 
+    println!("{resource_names:?} {resource_types:?}, {resource_storage_names:?}");
+
     quote!(
         #[derive(Default, Clone)]
         #[derive(::serde::Serialize, ::serde::Deserialize)]
@@ -97,7 +99,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         )*
 
         #(
-            impl ::engine_ecs::LocalTypeIndex<::engine_ecs::internal::OfResources<ComponentStorage>> for #component_types {
+            impl ::engine_ecs::LocalTypeIndex<::engine_ecs::internal::OfResources<ComponentStorage>> for #resource_types {
                 const TYPE_INDEX: u32 = #counter_resources;
             }
 
