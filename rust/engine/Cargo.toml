@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 engine_num = {path = "../engine_num"}
 engine_universe = {path = "../engine_universe"}
+engine_ecs = {path = "../engine_ecs"}
 
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 indexmap = { version = "*", features = ["serde"] }

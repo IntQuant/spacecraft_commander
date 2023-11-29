@@ -6,7 +6,7 @@ use crate::{
     mcs::Player, tilemap::Tile, ui_events::UiEventCtx, OwnedUniverseEvent, Universe, UniverseEvent,
 };
 
-use super::DefaultVesselRes;
+use super::{DefaultVesselRes, PlayerMap};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub(crate) struct PendingEventsRes(pub(crate) Vec<OwnedUniverseEvent>);
@@ -14,6 +14,7 @@ pub(crate) struct PendingEventsRes(pub(crate) Vec<OwnedUniverseEvent>);
 pub(crate) fn system_handle_pending_events(
     pending_events: &mut PendingEventsRes,
     default_vessel: &DefaultVesselRes,
+    player_map: &mut PlayerMap,
     //evctx: &mut UiEventCtx,
 ) {
     for event in &mut pending_events.0 {

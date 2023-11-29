@@ -4,13 +4,14 @@ use bevy_ecs::{
     change_detection::DetectChanges,
     system::{NonSendMut, Res, ResMut},
 };
+use engine_ecs::EntityID;
 use engine_num::Vec3;
 use godot::{
     engine::{CharacterBody3D, RayCast3D},
     prelude::*,
 };
 use tracing::{info, warn};
-use universe::mcs::PlayerID;
+use universe::mcs::{self, Player, PlayerID, PlayerMap};
 
 use crate::{
     universe::{
@@ -36,7 +37,7 @@ pub fn update_current_vessel(
     mut current_vessel: ResMut<CurrentVessel>,
     universe: Res<UniverseResource>,
 ) {
-    if let Some(player) = universe.0.players.get(&current_player.0) {
+    if let Some(player) = universe.player_info(**current_player) {
         if player.vessel != current_vessel.0 {
             info!("Current vessel changed");
             current_vessel.0 = player.vessel;
@@ -86,18 +87,16 @@ pub fn update_players_on_vessel(
     mut root_node: NonSendMut<RootNode>,
     mut player_node_res: NonSendMut<Option<PlayerNode>>,
 ) {
-    let mut on_current_vessel: HashSet<_> = universe
-        .players
+    let players: mcs::Query<(EntityID, &Player)> = universe.world.query_world().parameter();
+    let mut on_current_vessel: HashSet<_> = players
         .iter()
         .filter(|(_id, player)| player.vessel == current_vessel.0)
-        .map(|(id, _player)| *id)
+        .map(|(id, _player)| id)
         .collect();
 
     for mut player_character in scene_tree.iter_group::<CharacterBody3D>("players") {
-        let character_player_id = PlayerID(player_character.get("player".into()).to::<u32>());
-        if on_current_vessel.contains(&character_player_id) {
-            on_current_vessel.remove(&character_player_id);
-        } else {
+        let character_player_id = EntityID::from_godot(player_character.get("player".into()));
+        if !on_current_vessel.remove(&character_player_id) {
             info!("Removing {character_player_id:?} from ui");
             player_character.queue_free();
         }
@@ -107,7 +106,7 @@ pub fn update_players_on_vessel(
     for player_id in not_yet_spawned {
         info!("Adding {player_id:?} to ui");
         let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
-        player_node.set("player".into(), player_id.0.to_variant());
+        player_node.set("player".into(), player_id.to_godot());
         let is_me = current_player.0 == player_id;
         if is_me {
             *player_node_res = Some(PlayerNode {

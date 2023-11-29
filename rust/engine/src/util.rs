@@ -1,9 +1,13 @@
 use std::iter::Map;
 
+use engine_ecs::EntityID;
 use engine_num::Vec3;
-use godot::prelude::{
-    meta::VariantMetadata, Array, Basis, FromVariant, Gd, GodotClass, Inherits, Node, SceneTree,
-    StringName, Vector3,
+use godot::{
+    builtin::Variant,
+    prelude::{
+        meta::VariantMetadata, Array, Basis, FromVariant, Gd, GodotClass, Inherits, Node,
+        SceneTree, StringName, Vector3,
+    },
 };
 
 use crate::{
@@ -81,6 +85,19 @@ impl ToGodot for CompactBasis {
             raw_basis[1].to_godot(),
             raw_basis[2].to_godot(),
         )
+    }
+}
+
+impl FromGodot<Variant> for EntityID {
+    fn from_godot(val: Variant) -> Self {
+        EntityID::from_raw(val.to::<i64>() as u64) // Reinterpret u64 <> i64, because godot can't store u64 directly
+    }
+}
+
+impl ToGodot for EntityID {
+    type Output = Variant;
+    fn to_godot(&self) -> Self::Output {
+        Variant::from(self.to_raw() as i64)
     }
 }
 

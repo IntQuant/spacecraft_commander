@@ -4,8 +4,8 @@ use slotmapd::new_key_type;
 
 use crate::tilemap::{Tile, TileMap};
 
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub struct VesselID(EntityID);
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+pub struct VesselID(pub EntityID);
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct VesselTiles(pub TileMap<Tile>);

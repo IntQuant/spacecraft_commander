@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap};
 use engine_macro::gen_world_run_impls;
 use internal::{ComponentStorageProvider, DynDispath, OfResources, ResourceStorageProvider};
 use serde::{Deserialize, Serialize};
-use slotmapd::new_key_type;
+use slotmapd::{new_key_type, KeyData};
 use smallvec::SmallVec;
 use system_parameter::{ComponentRequests, SystemParameter};
 
@@ -19,6 +19,15 @@ pub use crate::{
 };
 
 new_key_type! { pub struct EntityID; }
+
+impl EntityID {
+    pub fn to_raw(self) -> u64 {
+        self.0.as_ffi()
+    }
+    pub fn from_raw(raw: u64) -> Self {
+        EntityID(KeyData::from_ffi(raw))
+    }
+}
 
 pub type TypeIndex = u32;
 

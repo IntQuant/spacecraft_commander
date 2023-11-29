@@ -20,7 +20,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputState, Ui};
 use universe::{
-    mcs::{DefaultVesselRes, VesselTiles},
+    mcs::{DefaultVesselRes, VesselID, VesselTiles},
     tilemap::TileIndex,
     Universe,
 };
@@ -125,9 +125,8 @@ impl Node3DVirtual for GameClass {
             },
         );
 
-        let vessel = universe.vessels.insert(VesselTiles(tile_map));
-
-        universe.default_vessel = DefaultVesselRes(vessel);
+        let vessel = universe.world.spawn(VesselTiles(tile_map));
+        universe.world.resource_mut::<DefaultVesselRes>().0 = VesselID(vessel);
 
         let universe = universe.into();
         Self {

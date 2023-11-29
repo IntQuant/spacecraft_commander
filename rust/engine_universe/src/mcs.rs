@@ -9,7 +9,7 @@ pub use vessel::*;
 
 gen_storage_for_world!(
     : components
-        VesselTiles
+        VesselTiles Player
     : resources
-        DefaultVesselRes PendingEventsRes
+        DefaultVesselRes PendingEventsRes PlayerMap
 );

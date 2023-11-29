@@ -5,7 +5,7 @@ use engine_num::Vec3;
 use indexmap::IndexMap;
 use mcs::{
     events::system_handle_pending_events, ComponentStorage, DefaultVesselRes, PendingEventsRes,
-    Player, PlayerID, VesselID, VesselTiles,
+    Player, PlayerID, PlayerMap, VesselID, VesselTiles,
 };
 use serde::{Deserialize, Serialize};
 use slotmapd::HopSlotMap;
@@ -29,10 +29,9 @@ pub mod mcs;
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Universe {
     //pending_events: Vec<OwnedUniverseEvent>,
-    world: World<ComponentStorage>,
+    pub world: World<ComponentStorage>,
     //pub players: IndexMap<PlayerID, Player>,
     //pub vessels: HopSlotMap<VesselID, VesselTiles>,
-    pub default_vessel: DefaultVesselRes,
 }
 
 impl Universe {
@@ -45,6 +44,13 @@ impl Universe {
             universe: self,
             evctx: UiEventCtx::default(),
         }
+    }
+
+    pub fn player_info(&self, player: PlayerID) -> Option<&Player> {
+        self.world
+            .resource::<PlayerMap>()
+            .get(player)
+            .and_then(|ent| self.world.get(ent))
     }
 }
 
