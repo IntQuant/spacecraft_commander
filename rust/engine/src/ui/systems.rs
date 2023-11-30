@@ -87,7 +87,8 @@ pub fn update_players_on_vessel(
     mut root_node: NonSendMut<RootNode>,
     mut player_node_res: NonSendMut<Option<PlayerNode>>,
 ) {
-    let players: mcs::Query<(EntityID, &Player)> = universe.world.query_world().parameter();
+    let binding = universe.world.query_world_shared();
+    let mut players: mcs::Query<(EntityID, &Player)> = binding.parameter();
     let mut on_current_vessel: HashSet<_> = players
         .iter()
         .filter(|(_id, player)| player.vessel == current_vessel.0)

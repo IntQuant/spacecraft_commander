@@ -268,7 +268,7 @@ impl<Storage: DynDispath> World<Storage> {
             .add_to_storage(storage, component)
     }
 
-    pub fn query_world_shared(&mut self) -> QueryWorld<Storage> {
+    pub fn query_world_shared(&self) -> QueryWorld<Storage> {
         QueryWorld {
             inner: self,
             currently_requested: Default::default(),

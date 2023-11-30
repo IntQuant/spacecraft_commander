@@ -7,9 +7,11 @@ pub(crate) use events::*;
 pub use player::*;
 pub use vessel::*;
 
+use crate::UiEventCtx;
+
 gen_storage_for_world!(
     : components
         VesselTiles Player
     : resources
-        DefaultVesselRes PendingEventsRes PlayerMap
+        DefaultVesselRes PendingEventsRes PlayerMap UiEventCtx
 );

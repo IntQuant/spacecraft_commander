@@ -22,6 +22,7 @@ use ui::{resources::InputState, Ui};
 use universe::{
     mcs::{DefaultVesselRes, VesselID, VesselTiles},
     tilemap::TileIndex,
+    ui_events::UiEventCtx,
     Universe,
 };
 use util::OptionNetmanExt;
@@ -111,7 +112,7 @@ impl Node3DVirtual for GameClass {
             None
         };
         let mut universe = Universe::new();
-        let mut evctx = universe.update_ctx().evctx();
+        let mut evctx = UiEventCtx::default();
 
         let mut tile_map = universe::tilemap::TileMap::new();
         tile_map.add_at(

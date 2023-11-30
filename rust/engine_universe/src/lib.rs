@@ -1,14 +1,12 @@
-use std::time::Duration;
+use std::{mem, time::Duration};
 
 use engine_ecs::{EntityID, World, WorldRun};
 use engine_num::Vec3;
-use indexmap::IndexMap;
 use mcs::{
-    events::system_handle_pending_events, ComponentStorage, DefaultVesselRes, PendingEventsRes,
-    Player, PlayerID, PlayerMap, VesselID, VesselTiles,
+    events::system_handle_pending_events, ComponentStorage, PendingEventsRes, Player, PlayerID,
+    PlayerMap,
 };
 use serde::{Deserialize, Serialize};
-use slotmapd::HopSlotMap;
 
 use self::{
     tilemap::{TileIndex, TileOrientation, TilePos},
@@ -28,10 +26,7 @@ pub mod mcs;
 /// Deterministic - same sequence of events and updates(steps) should result in same state.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Universe {
-    //pending_events: Vec<OwnedUniverseEvent>,
     pub world: World<ComponentStorage>,
-    //pub players: IndexMap<PlayerID, Player>,
-    //pub vessels: HopSlotMap<VesselID, VesselTiles>,
 }
 
 impl Universe {
@@ -40,10 +35,7 @@ impl Universe {
     }
 
     pub fn update_ctx(&mut self) -> UpdateCtx {
-        UpdateCtx {
-            universe: self,
-            evctx: UiEventCtx::default(),
-        }
+        UpdateCtx { universe: self }
     }
 
     pub fn player_ent_id(&self, player: PlayerID) -> Option<EntityID> {
@@ -60,12 +52,12 @@ impl Universe {
 
 pub struct UpdateCtx<'a> {
     universe: &'a mut Universe,
-    evctx: UiEventCtx,
 }
 
 impl UpdateCtx<'_> {
+    #[must_use]
     pub fn evctx(self) -> UiEventCtx {
-        self.evctx
+        mem::take(self.universe.world.resource_mut::<UiEventCtx>())
     }
 
     pub fn process_event(&mut self, event: OwnedUniverseEvent) {
@@ -77,8 +69,6 @@ impl UpdateCtx<'_> {
     }
 
     pub fn step(&mut self) {
-        let evctx = &mut self.evctx;
-
         let world = &mut self.universe.world;
         world.query_world().run(system_handle_pending_events);
         //system_handle_pending_events(universe, evctx);

@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use super::tilemap::TilePos;
 
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct UiEventCtx {
     pub tiles_changed: Vec<TilePos>,
 }
