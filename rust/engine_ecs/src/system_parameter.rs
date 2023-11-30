@@ -327,6 +327,11 @@ impl ComponentRequests {
         }
         true
     }
+
+    pub(crate) fn any_exclusive(&self) -> bool {
+        self.requests.iter().any(|x| x.exclusive)
+            || self.resource_requests.iter().any(|x| x.exclusive)
+    }
 }
 
 /// # Safety

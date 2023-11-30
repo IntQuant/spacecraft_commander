@@ -268,17 +268,27 @@ impl<Storage: DynDispath> World<Storage> {
             .add_to_storage(storage, component)
     }
 
+    pub fn query_world_shared(&mut self) -> QueryWorld<Storage> {
+        QueryWorld {
+            inner: self,
+            currently_requested: Default::default(),
+            exclusive: false,
+        }
+    }
+
     pub fn query_world(&mut self) -> QueryWorld<Storage> {
         QueryWorld {
             inner: self,
             currently_requested: Default::default(),
+            exclusive: true,
         }
     }
 }
 
 pub struct QueryWorld<'wrld, Storage> {
-    inner: &'wrld mut World<Storage>,
+    inner: &'wrld World<Storage>,
     currently_requested: RefCell<SmallVec<[ComponentRequests; 8]>>,
+    exclusive: bool,
 }
 
 impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
@@ -298,6 +308,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     /// # Safety
     ///
     /// See `get` method.
+    /// Not safe to call when exclusive is false.
     pub unsafe fn get_mut<T>(
         &self,
         storage: StorageID,
@@ -331,6 +342,7 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     /// # Safety
     ///
     /// See `resource` method.
+    /// Not safe to call when exclusive is false.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn resource_mut<R>(&self) -> &mut R
     where
@@ -343,6 +355,11 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
         let requests = Param::requests();
         for new_request in requests {
             for current_request in self.currently_requested.borrow().iter() {
+                if !self.exclusive && new_request.any_exclusive() {
+                    panic!(
+                        "Exlusive (&mut) parameters are not supported in non-exclusive QueryWorld"
+                    );
+                }
                 if !new_request.safe_with(current_request) {
                     panic!(
                         "{:?} and {:?} are incompatible, and thus cannot be used at the same time.",
