@@ -11,7 +11,7 @@ use godot::{
     prelude::*,
 };
 use tracing::{info, warn};
-use universe::mcs::{self, Player, PlayerID, PlayerMap};
+use universe::mcs::{self, Player, PlayerID, PlayerMap, VesselTiles};
 
 use crate::{
     universe::{
@@ -57,7 +57,7 @@ pub fn upload_current_vessel_tiles(
         shown.queue_free()
     }
 
-    let Some(tiles) = universe.vessels.get(current_vessel.0) else {
+    let Some(tiles) = universe.world.get::<VesselTiles>(current_vessel.0 .0) else {
         warn!("Current vessel does not exist");
         return;
     };
@@ -107,7 +107,7 @@ pub fn update_players_on_vessel(
         info!("Adding {player_id:?} to ui");
         let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
         player_node.set("player".into(), player_id.to_godot());
-        let is_me = current_player.0 == player_id;
+        let is_me = universe.player_ent_id(current_player.0) == Some(player_id);
         if is_me {
             *player_node_res = Some(PlayerNode {
                 player: player_node.clone().cast(),
@@ -115,7 +115,7 @@ pub fn update_players_on_vessel(
         }
         player_node.set("controlled".into(), is_me.to_variant());
         player_node.add_to_group("players".into());
-        if let Some(player_info) = universe.players.get(&player_id) {
+        if let Some(player_info) = universe.world.get::<Player>(player_id) {
             let position = player_info.position.to_godot();
             player_node
                 .clone()
@@ -289,7 +289,7 @@ pub fn update_player_positions(
         let mut player = player.cast::<CharacterBody3D>();
         let player_id = PlayerID(player.get("player".into()).to::<u32>());
         if current_player.0 != player_id {
-            let player_info = universe.players.get(&player_id);
+            let player_info = universe.player_info(player_id);
             if let Some(player_info) = player_info.as_ref() {
                 player.set_position(player_info.position.to_godot()); // TODO interpolate
             } else {

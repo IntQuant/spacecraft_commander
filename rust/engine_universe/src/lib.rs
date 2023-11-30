@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use engine_ecs::{World, WorldRun};
+use engine_ecs::{EntityID, World, WorldRun};
 use engine_num::Vec3;
 use indexmap::IndexMap;
 use mcs::{
@@ -44,6 +44,10 @@ impl Universe {
             universe: self,
             evctx: UiEventCtx::default(),
         }
+    }
+
+    pub fn player_ent_id(&self, player: PlayerID) -> Option<EntityID> {
+        self.world.resource::<PlayerMap>().get(player)
     }
 
     pub fn player_info(&self, player: PlayerID) -> Option<&Player> {
