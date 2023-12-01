@@ -22,4 +22,7 @@ impl PlayerMap {
     pub fn get(&self, id: PlayerID) -> Option<EntityID> {
         self.0.get(&id).copied()
     }
+    pub fn create(&mut self, id: PlayerID, ent: EntityID) {
+        self.0.insert(id, ent);
+    }
 }

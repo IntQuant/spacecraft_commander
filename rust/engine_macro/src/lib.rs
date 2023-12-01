@@ -74,8 +74,6 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let counter_resources = 0..(resource_names.len() as u32);
     let counter_resources_2 = 0..(resource_names.len() as u32);
 
-    println!("{resource_names:?} {resource_types:?}, {resource_storage_names:?}");
-
     quote!(
         #[derive(Default, Clone)]
         #[derive(::serde::Serialize, ::serde::Deserialize)]

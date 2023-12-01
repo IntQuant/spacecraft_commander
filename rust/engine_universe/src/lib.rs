@@ -71,6 +71,7 @@ impl UpdateCtx<'_> {
     pub fn step(&mut self) {
         let world = &mut self.universe.world;
         world.query_world().run(system_handle_pending_events);
+        world.resource_mut::<PendingEventsRes>().0.clear();
         //system_handle_pending_events(universe, evctx);
 
         //self.universe.pending_events.clear();

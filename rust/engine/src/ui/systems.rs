@@ -88,7 +88,7 @@ pub fn update_players_on_vessel(
     mut player_node_res: NonSendMut<Option<PlayerNode>>,
 ) {
     let binding = universe.world.query_world_shared();
-    let mut players: mcs::Query<(EntityID, &Player)> = binding.parameter();
+    let mut players = binding.parameter::<mcs::Query<(EntityID, &Player)>>();
     let mut on_current_vessel: HashSet<_> = players
         .iter()
         .filter(|(_id, player)| player.vessel == current_vessel.0)
@@ -288,9 +288,9 @@ pub fn update_player_positions(
     let players = scene_tree.get_nodes_in_group("players".into());
     for player in players.iter_shared() {
         let mut player = player.cast::<CharacterBody3D>();
-        let player_id = PlayerID(player.get("player".into()).to::<u32>());
-        if current_player.0 != player_id {
-            let player_info = universe.player_info(player_id);
+        let player_id = EntityID::from_godot(player.get("player".into()));
+        if universe.player_ent_id(current_player.0) != Some(player_id) {
+            let player_info = universe.world.get::<Player>(player_id);
             if let Some(player_info) = player_info.as_ref() {
                 player.set_position(player_info.position.to_godot()); // TODO interpolate
             } else {
