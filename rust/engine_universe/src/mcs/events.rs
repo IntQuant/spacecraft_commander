@@ -2,9 +2,7 @@ use engine_num::Vec3;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::{
-    mcs::Player, tilemap::Tile, ui_events::UiEventCtx, OwnedUniverseEvent, Universe, UniverseEvent,
-};
+use crate::{mcs::Player, tilemap::Tile, ui_events::UiEventCtx, OwnedUniverseEvent, UniverseEvent};
 
 use super::{Commands, DefaultVesselRes, PlayerMap, Query, VesselTiles};
 

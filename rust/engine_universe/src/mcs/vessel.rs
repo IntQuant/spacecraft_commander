@@ -1,6 +1,5 @@
 use engine_ecs::EntityID;
 use serde::{Deserialize, Serialize};
-use slotmapd::new_key_type;
 
 use crate::tilemap::{Tile, TileMap};
 
