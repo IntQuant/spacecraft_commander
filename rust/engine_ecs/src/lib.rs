@@ -1,25 +1,22 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    ops::{Deref, DerefMut, Range},
-};
+use std::collections::HashMap;
 
-use engine_macro::gen_world_run_impls;
 use internal::{ComponentStorageProvider, DynDispath, OfResources, ResourceStorageProvider};
+use query_world::WorldRef;
 use serde::{Deserialize, Serialize};
 use slotmapd::{new_key_type, KeyData};
-use smallvec::SmallVec;
-use system_parameter::{ComponentRequests, SystemParameter};
 
-pub(crate) mod component_traits;
+mod component_traits;
 mod ecs_cell;
 #[doc(hidden)]
 pub mod internal;
-pub(crate) mod system_parameter;
+mod query_world;
+mod system_parameter;
+
+pub use query_world::{ParamGuard, QueryWorld, WorldRun};
 
 pub use crate::{
     component_traits::{Bundle, Component},
-    system_parameter::{QueryG, WithG, WithoutG},
+    system_parameter::{commands::CommandsG, QueryG, WithG, WithoutG},
 };
 
 new_key_type! { pub struct EntityID; }
@@ -272,176 +269,11 @@ impl<Storage: DynDispath> World<Storage> {
             .add_to_storage(storage, component)
     }
 
-    pub fn query_world_shared(&self) -> QueryWorld<Storage> {
-        QueryWorld {
-            inner: self,
-            currently_requested: Default::default(),
-            parameter_index: 0.into(),
-            exclusive: false,
-        }
+    pub fn query_world_shared(&self) -> query_world::QueryWorld<Storage> {
+        QueryWorld::new(WorldRef::Shared(self))
     }
 
-    pub fn query_world(&mut self) -> QueryWorld<Storage> {
-        QueryWorld {
-            inner: self,
-            currently_requested: Default::default(),
-            parameter_index: 0.into(),
-            exclusive: true,
-        }
+    pub fn query_world(&mut self) -> query_world::QueryWorld<Storage> {
+        QueryWorld::new(WorldRef::Exclusive(self))
     }
 }
-
-pub struct QueryWorld<'wrld, Storage> {
-    inner: &'wrld World<Storage>,
-    currently_requested: RefCell<Vec<ComponentRequests>>,
-    parameter_index: RefCell<usize>,
-    exclusive: bool,
-}
-
-pub struct ParamGuard<'wlrd, 'a, Storage, Param> {
-    inner: Param,
-    world: &'a QueryWorld<'wlrd, Storage>,
-    holds: Range<usize>,
-}
-
-impl<'wlrd, 'a, Storage, Param> Deref for ParamGuard<'wlrd, 'a, Storage, Param> {
-    type Target = Param;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'wlrd, 'a, Storage, Param> DerefMut for ParamGuard<'wlrd, 'a, Storage, Param> {
-    fn deref_mut(&mut self) -> &mut Param {
-        &mut self.inner
-    }
-}
-
-impl<'wlrd, 'a, Storage, Param> Drop for ParamGuard<'wlrd, 'a, Storage, Param> {
-    fn drop(&mut self) {
-        self.world.release_parameter(self.holds.clone())
-    }
-}
-
-impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
-    /// # Safety
-    ///
-    /// Aliasing rules have to be upheld per StorageID and component type.
-    pub unsafe fn get<T: Component<Storage>>(
-        &self,
-        storage: StorageID,
-        index_in_arche: InArchetypeID,
-    ) -> Option<&T>
-    where
-        Storage: ComponentStorageProvider<T>,
-    {
-        self.inner.storage.storage().get(storage, index_in_arche)
-    }
-    /// # Safety
-    ///
-    /// See `get` method.
-    /// Not safe to call when exclusive is false.
-    pub unsafe fn get_mut<T>(
-        &self,
-        storage: StorageID,
-        index_in_arche: InArchetypeID,
-    ) -> Option<&mut T>
-    where
-        Storage: ComponentStorageProvider<T>,
-    {
-        self.inner
-            .storage
-            .storage()
-            .get_mut_unsafe(storage, index_in_arche)
-    }
-    pub fn storage_for_archetype<T: Component<Storage>>(
-        &self,
-        archetype: ArchetypeID,
-    ) -> Option<StorageID> {
-        self.inner.archeman.find_storage::<Storage, T>(archetype)
-    }
-
-    /// # Safety
-    ///
-    /// Aliasing rules have to be upheld per resource type.
-    pub unsafe fn resource<R>(&self) -> &R
-    where
-        Storage: ResourceStorageProvider<R>,
-    {
-        self.inner.storage.storage().get()
-    }
-
-    /// # Safety
-    ///
-    /// See `resource` method.
-    /// Not safe to call when exclusive is false.
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn resource_mut<R>(&self) -> &mut R
-    where
-        Storage: ResourceStorageProvider<R>,
-    {
-        self.inner.storage.storage().get_mut_unsafe()
-    }
-
-    pub fn parameter<Param: SystemParameter<'wrld, Storage>>(
-        &'wrld self,
-    ) -> ParamGuard<Storage, Param> {
-        let (holds, param) = self.parameter_raw();
-        ParamGuard {
-            inner: param,
-            world: self,
-            holds,
-        }
-    }
-
-    fn parameter_raw<Param: SystemParameter<'wrld, Storage>>(&'wrld self) -> (Range<usize>, Param) {
-        *self.parameter_index.borrow_mut() += 1;
-        let requests = Param::requests();
-        let req_start = self.currently_requested.borrow().len();
-        for new_request in requests {
-            for current_request in self.currently_requested.borrow().iter() {
-                if !self.exclusive && new_request.any_exclusive() {
-                    panic!(
-                        "Exlusive (&mut) parameters are not supported in non-exclusive QueryWorld"
-                    );
-                }
-                if !new_request.safe_with(current_request) {
-                    panic!(
-                        "{:?} and {:?} are incompatible, and thus cannot be used at the same time.",
-                        current_request, new_request
-                    );
-                }
-            }
-            self.currently_requested.borrow_mut().push(new_request);
-        }
-        let req_end = self.currently_requested.borrow().len();
-        let req_range = req_start..req_end;
-        // Safety: checked that requests are satisfied.
-        (req_range, unsafe { Param::from_world(self) })
-    }
-
-    fn release_parameter(&self, holds: Range<usize>) {
-        for i in holds {
-            self.currently_requested.borrow_mut()[i].release();
-        }
-    }
-}
-
-pub trait WorldRun<'wrld, F, P> {
-    fn run(&'wrld self, f: F);
-}
-
-gen_world_run_impls!(0);
-gen_world_run_impls!(1);
-gen_world_run_impls!(2);
-gen_world_run_impls!(3);
-gen_world_run_impls!(4);
-gen_world_run_impls!(5);
-gen_world_run_impls!(6);
-gen_world_run_impls!(7);
-gen_world_run_impls!(8);
-gen_world_run_impls!(9);
-gen_world_run_impls!(10);
-gen_world_run_impls!(11);
-gen_world_run_impls!(12);

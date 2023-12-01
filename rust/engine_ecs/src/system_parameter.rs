@@ -3,8 +3,11 @@ use std::marker::PhantomData;
 use engine_macro::gen_query_param_tuple_impls;
 use smallvec::SmallVec;
 
+pub(crate) mod commands;
+
 use crate::{
-    ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeID, QueryWorld, TypeIndex,
+    query_world::QueryWorld, ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeID,
+    TypeIndex,
 };
 
 /// # Safety

@@ -205,6 +205,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         pub type Query<'a, T, Limits=()> = ::engine_ecs::QueryG<'a, ComponentStorage, T, Limits>;
         pub type With<T> = ::engine_ecs::WithG<ComponentStorage, T>;
         pub type Without<T> = ::engine_ecs::WithoutG<ComponentStorage, T>;
+        pub type Commands = ::engine_ecs::CommandsG<ComponentStorage>;
     )
     .into()
 }

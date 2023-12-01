@@ -178,8 +178,8 @@ mod tests {
         let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
         let ent3 = world.spawn((Component1(6), Component2(7)));
 
-        let query_world = world.query_world();
         {
+            let query_world = world.query_world();
             let mut query: ParamGuard<_, Query<&mut Component1>> = query_world.parameter();
             for component in query.iter() {
                 component.0 += 1;
@@ -226,8 +226,8 @@ mod tests {
         let ent2 = world.spawn((Component1(3), Component2(4), Component3(5)));
         let ent3 = world.spawn((Component1(6), Component2(7)));
 
-        let query_world = world.query_world();
         {
+            let query_world = world.query_world();
             let mut query1: ParamGuard<_, Query<&mut Component1, With<Component3>>> =
                 query_world.parameter();
             let mut query2: ParamGuard<_, Query<&mut Component1, Without<Component3>>> =
@@ -256,8 +256,8 @@ mod tests {
     #[test]
     fn parameter_resource() {
         let mut world = World::<ComponentStorage>::new();
-        let query_world = world.query_world();
         {
+            let query_world = world.query_world();
             let mut param: ParamGuard<_, &mut Resource1> = query_world.parameter();
             param.0 += 10;
         }
@@ -291,13 +291,28 @@ mod tests {
         let mut world = World::<ComponentStorage>::new();
         world.spawn((Component1(5), Component2(1), Component3(2)));
 
-        let query_world = world.query_world();
-        query_world.run(sys2);
-
-        let query_world = world.query_world();
-        query_world.run(sys);
+        {
+            let query_world = world.query_world();
+            query_world.run(sys2);
+            query_world.run(sys);
+        }
 
         let param = world.resource();
         assert_eq!(param.0, 11);
+    }
+
+    #[test]
+    fn command() {
+        let mut world = World::<ComponentStorage>::new();
+
+        {
+            let query_world = world.query_world();
+            let commands = query_world.parameter::<Commands>();
+            commands.submit(|world| {
+                world.spawn((Component1(5), Component2(1), Component3(2)));
+            });
+        }
+
+        assert_eq!(world.entity_count(), 1);
     }
 }

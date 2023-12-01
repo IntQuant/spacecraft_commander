@@ -11,3 +11,4 @@ engine_macro = { path = "../engine_macro" }
 slotmapd = { version = "1.0.10", features = ["serde"] }
 smallvec = { version = "1.11.2", features = ["serde"] }
 serde = {version = "1.0.192", features = ["derive"]}
+crossbeam-queue = "0.3.8"
