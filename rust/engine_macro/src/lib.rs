@@ -346,6 +346,9 @@ pub fn gen_world_run_impls(input: TokenStream) -> TokenStream {
     let var_names = (0..count)
         .map(|x| format_ident!("p{x}"))
         .collect::<Vec<_>>();
+    let rel_names = (0..count)
+        .map(|x| format_ident!("r{x}"))
+        .collect::<Vec<_>>();
 
     quote!(
         impl<'wrld, Storage, F, #(#type_names,)*> WorldRun<'wrld, F, (#(#type_names,)*)> for QueryWorld<'wrld, Storage>
@@ -354,8 +357,9 @@ pub fn gen_world_run_impls(input: TokenStream) -> TokenStream {
             #(#type_names: SystemParameter<'wrld, Storage>,)*
         {
             fn run(&'wrld self, f: F) {
-                #( let #var_names = self.parameter(); )*
-                f(#(#var_names),*)
+                #( let (#rel_names, #var_names) = self.parameter_raw(); )*
+                f(#(#var_names),*);
+                #( self.release_parameter(#rel_names); )*
             }
         }
     )

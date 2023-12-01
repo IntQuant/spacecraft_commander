@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use engine_ecs::{EntityID, World, WorldRun};
+    use engine_ecs::{EntityID, ParamGuard, World, WorldRun};
     use engine_macro::gen_storage_for_world;
     use serde::{Deserialize, Serialize};
 
@@ -153,14 +153,15 @@ mod tests {
 
         let query_world = world.query_world();
 
-        let mut query: Query<&Component1> = query_world.parameter();
+        let mut query: ParamGuard<_, Query<&Component1>> = query_world.parameter();
         let res = query.iter().collect::<Vec<_>>();
         assert_eq!(res.len(), 3);
         assert_eq!(*res[0], Component1(0));
         assert_eq!(*res[1], Component1(3));
         assert_eq!(*res[2], Component1(6));
 
-        let mut query: Query<(&Component1, &Component3, EntityID)> = query_world.parameter();
+        let mut query: ParamGuard<_, Query<(&Component1, &Component3, EntityID)>> =
+            query_world.parameter();
         let res = query.iter().collect::<Vec<_>>();
         assert_eq!(res.len(), 2);
         assert_eq!(*res[0].0, Component1(0));
@@ -178,10 +179,11 @@ mod tests {
         let ent3 = world.spawn((Component1(6), Component2(7)));
 
         let query_world = world.query_world();
-
-        let mut query: Query<&mut Component1> = query_world.parameter();
-        for component in query.iter() {
-            component.0 += 1;
+        {
+            let mut query: ParamGuard<_, Query<&mut Component1>> = query_world.parameter();
+            for component in query.iter() {
+                component.0 += 1;
+            }
         }
 
         assert_eq!(world.get::<Component1>(ent1).unwrap().0, 1);
@@ -199,8 +201,8 @@ mod tests {
 
         let query_world = world.query_world();
 
-        let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
-        let _query2: Query<(&Component1, &Component2)> = query_world.parameter();
+        let _query1: ParamGuard<_, Query<(&mut Component1, &Component2)>> = query_world.parameter();
+        let _query2: ParamGuard<_, Query<(&Component1, &Component2)>> = query_world.parameter();
     }
 
     #[test]
@@ -213,8 +215,8 @@ mod tests {
 
         let query_world = world.query_world();
 
-        let _query1: Query<(&mut Component1, &Component2)> = query_world.parameter();
-        let _query2: Query<(&mut Component1, &Component2)> = query_world.parameter();
+        let _query1: ParamGuard<_, Query<(&mut Component1, &Component2)>> = query_world.parameter();
+        let _query2: ParamGuard<_, Query<(&mut Component1, &Component2)>> = query_world.parameter();
     }
 
     #[test]
@@ -225,14 +227,17 @@ mod tests {
         let ent3 = world.spawn((Component1(6), Component2(7)));
 
         let query_world = world.query_world();
-
-        let mut query1: Query<&mut Component1, With<Component3>> = query_world.parameter();
-        let mut query2: Query<&mut Component1, Without<Component3>> = query_world.parameter();
-        for component in query1.iter() {
-            component.0 += 3;
-        }
-        for component in query2.iter() {
-            component.0 += 6;
+        {
+            let mut query1: ParamGuard<_, Query<&mut Component1, With<Component3>>> =
+                query_world.parameter();
+            let mut query2: ParamGuard<_, Query<&mut Component1, Without<Component3>>> =
+                query_world.parameter();
+            for component in query1.iter() {
+                component.0 += 3;
+            }
+            for component in query2.iter() {
+                component.0 += 6;
+            }
         }
 
         assert_eq!(world.get::<Component1>(ent1).unwrap().0, 3);
@@ -252,11 +257,13 @@ mod tests {
     fn parameter_resource() {
         let mut world = World::<ComponentStorage>::new();
         let query_world = world.query_world();
-        let param: &mut Resource1 = query_world.parameter();
-        param.0 += 10;
+        {
+            let mut param: ParamGuard<_, &mut Resource1> = query_world.parameter();
+            param.0 += 10;
+        }
 
         let query_world = world.query_world();
-        let param: &Resource1 = query_world.parameter();
+        let param: ParamGuard<_, &Resource1> = query_world.parameter();
         assert_eq!(param.0, 10);
     }
 
@@ -265,9 +272,9 @@ mod tests {
     fn parameter_resource_conflict() {
         let mut world = World::<ComponentStorage>::new();
         let query_world = world.query_world();
-        let param: &mut Resource1 = query_world.parameter();
+        let mut param: ParamGuard<_, &mut Resource1> = query_world.parameter();
         param.0 += 10;
-        let param: &Resource1 = query_world.parameter();
+        let param: ParamGuard<_, &Resource1> = query_world.parameter();
         assert_eq!(param.0, 10);
     }
 

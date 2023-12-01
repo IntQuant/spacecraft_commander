@@ -332,6 +332,11 @@ impl ComponentRequests {
         self.requests.iter().any(|x| x.exclusive)
             || self.resource_requests.iter().any(|x| x.exclusive)
     }
+
+    pub(crate) fn release(&mut self) {
+        self.requests.clear();
+        self.resource_requests.clear();
+    }
 }
 
 /// # Safety
