@@ -50,3 +50,18 @@ impl BuildingFacing {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct BuildingOrientation {
+    pub facing: BuildingFacing,
+    pub rotation: BuildingRotation,
+}
+
+impl BuildingOrientation {
+    pub fn new(facing: BuildingFacing, rotation: BuildingRotation) -> Self {
+        Self { facing, rotation }
+    }
+    pub fn to_basis(&self) -> CompactBasis {
+        self.facing.to_basis()
+    }
+}

@@ -3,31 +3,15 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use super::{
-    rotations::{BuildingFacing, BuildingRotation, CompactBasis},
-    ui_events::UiEventCtx,
-};
+use crate::rotations::BuildingOrientation;
+
+use super::ui_events::UiEventCtx;
 
 pub type DefVec<T> = SmallVec<[T; 4]>;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct TileOrientation {
-    pub facing: BuildingFacing,
-    pub rotation: BuildingRotation,
-}
-
-impl TileOrientation {
-    pub fn new(facing: BuildingFacing, rotation: BuildingRotation) -> Self {
-        Self { facing, rotation }
-    }
-    pub fn to_basis(&self) -> CompactBasis {
-        self.facing.to_basis()
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tile {
-    pub orientation: TileOrientation,
+    pub orientation: BuildingOrientation,
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]

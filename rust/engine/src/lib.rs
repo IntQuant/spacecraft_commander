@@ -1,6 +1,6 @@
 use crate::universe::{
     rotations,
-    tilemap::{Tile, TileOrientation, TilePos},
+    tilemap::{Tile, TilePos},
 };
 use std::{
     ops::DerefMut,
@@ -21,6 +21,7 @@ use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputState, Ui};
 use universe::{
     mcs::{DefaultVesselRes, VesselID, VesselTiles},
+    rotations::BuildingOrientation,
     tilemap::TileIndex,
     ui_events::UiEventCtx,
     Universe,
@@ -119,7 +120,7 @@ impl Node3DVirtual for GameClass {
             &mut evctx,
             TilePos { x: 0, y: 0, z: 0 },
             Tile {
-                orientation: TileOrientation::new(
+                orientation: BuildingOrientation::new(
                     rotations::BuildingFacing::Ny,
                     rotations::BuildingRotation::N,
                 ),

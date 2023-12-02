@@ -4,7 +4,7 @@ use tracing::info;
 
 use crate::{mcs::Player, tilemap::Tile, ui_events::UiEventCtx, OwnedUniverseEvent, UniverseEvent};
 
-use super::{Commands, DefaultVesselRes, PlayerMap, Query, VesselTiles};
+use super::{Building, Commands, DefaultVesselRes, PlayerMap, Query, VesselTiles};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub(crate) struct PendingEventsRes(pub(crate) Vec<OwnedUniverseEvent>);
@@ -70,6 +70,19 @@ pub(crate) fn system_handle_pending_events<'a>(
                     continue;
                 };
                 vessel.0.remove_at(evctx, position, index);
+            }
+            UniverseEvent::PlaceBuilding {
+                position,
+                orientation,
+                kind,
+            } => {
+                commands.submit(move |world| {
+                    world.spawn(Building {
+                        position,
+                        orientation,
+                        kind,
+                    });
+                });
             }
         }
     }

@@ -11,13 +11,16 @@ use godot::{
     prelude::*,
 };
 use tracing::{info, warn};
-use universe::mcs::{self, Player, VesselTiles};
+use universe::{
+    mcs::{self, Player, VesselTiles},
+    rotations::BuildingOrientation,
+};
 
 use crate::{
     universe::{
         self,
         rotations::{self},
-        tilemap::{TileOrientation, TilePos},
+        tilemap::TilePos,
     },
     util::{FromGodot, SceneTreeExt, ToGodot},
     BaseStaticBody, BodyKind,
@@ -248,7 +251,7 @@ pub fn building_placer(
     if Input::singleton().is_action_just_pressed("g_place".into()) {
         events.push(universe::UniverseEvent::PlaceTile {
             position: place_tile,
-            orientation: TileOrientation::new(current_facing.0, rotations::BuildingRotation::N),
+            orientation: BuildingOrientation::new(current_facing.0, rotations::BuildingRotation::N),
         })
     }
 }
