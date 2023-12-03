@@ -204,8 +204,8 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     }
 }
 
-pub trait WorldRun<'wrld, F, P> {
-    fn run(&'wrld self, f: F);
+pub trait WorldRun<'wrld, F, Ret, P> {
+    fn run(&'wrld self, f: F) -> Ret;
 }
 
 gen_world_run_impls!(0);

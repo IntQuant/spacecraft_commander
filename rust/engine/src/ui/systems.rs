@@ -1,9 +1,5 @@
 use std::{collections::HashSet, f32::consts::PI};
 
-use bevy_ecs::{
-    change_detection::DetectChanges,
-    system::{NonSendMut, Res, ResMut},
-};
 use engine_ecs::EntityID;
 use engine_num::Vec3;
 use godot::{
@@ -28,23 +24,21 @@ use crate::{
 
 use super::resources::{
     CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
-    EvCtxRes, InputStateRes, PlayerNodeRes, RootNodeRes, SceneTreeRes, UniverseEventStorageRes,
-    UniverseRes,
+    EvCtxRes, InputStateRes, PlacerRes, PlayerNodeRes, RootNodeRes, SceneTreeRes,
+    UniverseEventStorageRes, UniverseRes,
 };
 
-pub fn vessel_upload_condition(
-    current_vessel: Res<CurrentVesselRes>,
-    evctx: Res<EvCtxRes>,
-) -> bool {
-    current_vessel.is_changed() || !evctx.tiles_changed.is_empty()
+pub fn vessel_upload_condition(_current_vessel: &CurrentVesselRes, evctx: &EvCtxRes) -> bool {
+    //current_vessel.is_changed() || !evctx.tiles_changed.is_empty() // TODO
+    !evctx.tiles_changed.is_empty()
 }
 
 pub fn update_current_vessel(
-    current_player: Res<CurrentPlayerRes>,
-    mut current_vessel: ResMut<CurrentVesselRes>,
-    universe: Res<UniverseRes>,
+    current_player: &CurrentPlayerRes,
+    current_vessel: &mut CurrentVesselRes,
+    universe: &UniverseRes,
 ) {
-    if let Some(player) = universe.player_info(**current_player) {
+    if let Some(player) = current_player.0.and_then(|x| universe.player_info(x)) {
         if player.vessel != current_vessel.0 {
             info!("Current vessel changed");
             current_vessel.0 = player.vessel;
@@ -53,10 +47,10 @@ pub fn update_current_vessel(
 }
 
 pub fn upload_current_vessel_tiles(
-    universe: Res<UniverseRes>,
-    current_vessel: Res<CurrentVesselRes>,
-    mut scene_tree: NonSendMut<SceneTreeRes>,
-    mut root_node: NonSendMut<RootNodeRes>,
+    universe: &UniverseRes,
+    current_vessel: &CurrentVesselRes,
+    scene_tree: &mut SceneTreeRes,
+    root_node: &mut RootNodeRes,
 ) {
     info!("Uploading vessel");
 
@@ -82,17 +76,17 @@ pub fn upload_current_vessel_tiles(
         let basis = tile.orientation.to_basis().to_godot();
         node.set_basis(basis);
         node.add_to_group("tiles".into());
-        root_node.0.add_child(node.upcast());
+        root_node.add_child(node.upcast());
     }
 }
 
 pub fn update_players_on_vessel(
-    universe: Res<UniverseRes>,
-    current_player: Res<CurrentPlayerRes>,
-    current_vessel: Res<CurrentVesselRes>,
-    mut scene_tree: NonSendMut<SceneTreeRes>,
-    mut root_node: NonSendMut<RootNodeRes>,
-    mut player_node_res: NonSendMut<Option<PlayerNodeRes>>,
+    universe: &UniverseRes,
+    current_player: &CurrentPlayerRes,
+    current_vessel: &CurrentVesselRes,
+    scene_tree: &mut SceneTreeRes,
+    root_node: &mut RootNodeRes,
+    player_node_res: &mut PlayerNodeRes,
 ) {
     let binding = universe.world.query_world_shared();
     let mut players = binding.parameter::<mcs::Query<(EntityID, &Player)>>();
@@ -115,11 +109,11 @@ pub fn update_players_on_vessel(
         info!("Adding {player_id:?} to ui");
         let mut player_node = load::<PackedScene>("Character.tscn").instantiate().unwrap();
         player_node.set("player".into(), player_id.to_godot());
-        let is_me = universe.player_ent_id(current_player.0) == Some(player_id);
+        let is_me = current_player.0.and_then(|x| universe.player_ent_id(x)) == Some(player_id);
         if is_me {
-            *player_node_res = Some(PlayerNodeRes {
-                player: player_node.clone().cast(),
-            });
+            *player_node_res = PlayerNodeRes {
+                player: Some(player_node.clone().cast()),
+            };
         }
         player_node.set("controlled".into(), is_me.to_variant());
         player_node.add_to_group("players".into());
@@ -137,16 +131,16 @@ pub fn update_players_on_vessel(
 }
 
 pub fn player_controls(
-    mut player_node: NonSendMut<Option<PlayerNodeRes>>,
-    dt: Res<DtRes>,
-    input: Res<InputStateRes>,
-    mut events: ResMut<UniverseEventStorageRes>,
-    mut current_player_rotation: ResMut<CurrentPlayerRotationRes>,
+    player_node: &mut PlayerNodeRes,
+    dt: &DtRes,
+    input: &InputStateRes,
+    events: &mut UniverseEventStorageRes,
+    current_player_rotation: &mut CurrentPlayerRotationRes,
 ) {
-    let Some(player_node) = player_node.as_mut() else {
+    if player_node.player.is_none() {
         return;
     };
-    let player_node = &mut player_node.player;
+
     let mut velocity = player_node.get_velocity();
     let mut position = player_node.get_position();
     if !player_node.is_on_floor() {
@@ -194,14 +188,9 @@ pub fn player_controls(
     events.0.push(event);
 }
 
-#[derive(Default)]
-pub struct PlacerLocal {
-    temp_build_node: Option<Gd<Node3D>>,
-}
-
 pub fn building_facing(
-    mut current_facing: ResMut<CurrentFacingRes>,
-    current_player_rotation: Res<CurrentPlayerRotationRes>,
+    current_facing: &mut CurrentFacingRes,
+    current_player_rotation: &CurrentPlayerRotationRes,
 ) {
     let input = Input::singleton();
     if input.is_action_pressed("g_rot_en".into()) {
@@ -224,15 +213,16 @@ pub fn building_facing(
 }
 
 pub fn building_placer(
-    mut player_node: NonSendMut<Option<PlayerNodeRes>>,
-    mut events: ResMut<UniverseEventStorageRes>,
-    mut root_node: NonSendMut<RootNodeRes>,
-    mut local: NonSendMut<PlacerLocal>,
-    current_facing: Res<CurrentFacingRes>,
+    player_node: &mut PlayerNodeRes,
+    events: &mut UniverseEventStorageRes,
+    root_node: &mut RootNodeRes,
+    local: &mut PlacerRes,
+    current_facing: &CurrentFacingRes,
 ) {
-    let Some(player_node) = player_node.as_mut() else {
+    if player_node.player.is_none() {
         return;
     };
+
     let pos = player_node.get_position();
     let cam = player_node
         .get_node("Camera3D".into())
@@ -260,13 +250,11 @@ pub fn building_placer(
     }
 }
 
-pub fn building_remover(
-    mut player_node: NonSendMut<Option<PlayerNodeRes>>,
-    mut events: ResMut<UniverseEventStorageRes>,
-) {
-    let Some(player_node) = player_node.as_mut() else {
+pub fn building_remover(player_node: &mut PlayerNodeRes, events: &mut UniverseEventStorageRes) {
+    if player_node.player.is_none() {
         return;
     };
+
     let raycast = player_node
         .get_node("Camera3D/RayCast3D".into())
         .unwrap()
@@ -288,15 +276,15 @@ pub fn building_remover(
 }
 
 pub fn update_player_positions(
-    mut scene_tree: NonSendMut<SceneTreeRes>,
-    universe: Res<UniverseRes>,
-    current_player: Res<CurrentPlayerRes>,
+    scene_tree: &mut SceneTreeRes,
+    universe: &UniverseRes,
+    current_player: &CurrentPlayerRes,
 ) {
     let players = scene_tree.get_nodes_in_group("players".into());
     for player in players.iter_shared() {
         let mut player = player.cast::<CharacterBody3D>();
         let player_id = EntityID::from_godot(player.get("player".into()));
-        if universe.player_ent_id(current_player.0) != Some(player_id) {
+        if current_player.0.and_then(|x| universe.player_ent_id(x)) != Some(player_id) {
             let player_info = universe.world.get::<Player>(player_id);
             if let Some(player_info) = player_info.as_ref() {
                 player.set_position(player_info.position.to_godot()); // TODO interpolate

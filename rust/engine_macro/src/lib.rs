@@ -89,7 +89,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     } else {
         quote!()
     };
-    let clone_derives = if serialize_en {
+    let clone_derives = if clone_en {
         quote!(
             #[derive(Clone)]
         )
@@ -374,15 +374,16 @@ pub fn gen_world_run_impls(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote!(
-        impl<'wrld, Storage, F, #(#type_names,)*> WorldRun<'wrld, F, (#(#type_names,)*)> for QueryWorld<'wrld, Storage>
+        impl<'wrld, Storage, F, Ret, #(#type_names,)*> WorldRun<'wrld, F, Ret, (#(#type_names,)*)> for QueryWorld<'wrld, Storage>
         where
-            F: FnOnce(#(#type_names),*),
+            F: FnOnce(#(#type_names),*) -> Ret,
             #(#type_names: SystemParameter<'wrld, Storage>,)*
         {
-            fn run(&'wrld self, f: F) {
+            fn run(&'wrld self, f: F) -> Ret {
                 #( let (#rel_names, #var_names) = self.parameter_raw(); )*
-                f(#(#var_names),*);
+                let ret = f(#(#var_names),*);
                 #( self.release_parameter(#rel_names); )*
+                ret
             }
         }
     )

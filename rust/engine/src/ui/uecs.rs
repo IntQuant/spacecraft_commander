@@ -2,8 +2,8 @@ use engine_ecs::gen_storage_for_world;
 
 use super::resources::{
     CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
-    EvCtxRes, InputStateRes, PlayerNodeRes, RootNodeRes, SceneTreeRes, UniverseEventStorageRes,
-    UniverseRes,
+    EvCtxRes, InputStateRes, PlacerRes, PlayerNodeRes, RootNodeRes, SceneTreeRes,
+    UniverseEventStorageRes, UniverseRes,
 };
 
 gen_storage_for_world!(
@@ -14,5 +14,5 @@ gen_storage_for_world!(
     : resources
         CurrentFacingRes CurrentPlayerRes CurrentPlayerRotationRes CurrentVesselRes DtRes
         EvCtxRes InputStateRes PlayerNodeRes RootNodeRes SceneTreeRes UniverseEventStorageRes
-        UniverseRes
+        UniverseRes PlacerRes
 );
