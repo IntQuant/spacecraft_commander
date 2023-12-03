@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 
 pub struct CompactBasis(pub [i8; 3]);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum BuildingFacing {
+    #[default]
     Px,
     Nx,
     Py,

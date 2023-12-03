@@ -18,7 +18,7 @@ use netman::NetmanVariant;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use ui::{resources::InputState, Ui};
+use ui::{resources::InputStateRes, Ui};
 use universe::{
     mcs::{DefaultVesselRes, VesselID, VesselTiles},
     rotations::BuildingOrientation,
@@ -86,7 +86,7 @@ struct GameClass {
     universe: Arc<Universe>,
     netman: Option<NetmanVariant>,
     ui: Ui,
-    input: InputState,
+    input: InputStateRes,
     #[base]
     base: Base<Node3D>,
 }

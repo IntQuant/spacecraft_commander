@@ -1,48 +1,79 @@
 use derive_more::{Deref, DerefMut};
 use engine_universe::mcs::{PlayerID, VesselID};
-use std::sync::Arc;
+use std::{ops, sync::Arc};
 
 use bevy_ecs::system::Resource;
-use godot::{engine::CharacterBody3D, prelude::*};
+use godot::{
+    engine::CharacterBody3D,
+    prelude::{SceneTree, *},
+};
 
 use crate::universe::{rotations::BuildingFacing, ui_events::UiEventCtx, Universe, UniverseEvent};
 
-#[derive(Deref, Resource)]
-pub struct UniverseResource(pub Arc<Universe>);
+#[derive(Resource, Default)]
+pub struct UniverseRes(pub Option<Arc<Universe>>);
+
+impl ops::Deref for UniverseRes {
+    type Target = Universe;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.unwrap()
+    }
+}
 
 #[derive(Default, Resource, Clone)]
-pub struct InputState {
+pub struct InputStateRes {
     pub mouse_rel: Vector2,
 }
 
-#[derive(Deref, DerefMut, Resource)]
-pub struct CurrentPlayer(pub PlayerID);
+#[derive(Deref, DerefMut, Resource, Default)]
+pub struct CurrentPlayerRes(pub Option<PlayerID>);
 
-#[derive(Deref, DerefMut, Resource)]
-pub struct CurrentVessel(pub VesselID);
+#[derive(Deref, DerefMut, Resource, Default)]
+pub struct CurrentVesselRes(pub VesselID);
 
-#[derive(Deref, DerefMut)]
-pub struct RootNode(pub Gd<Node3D>);
+#[derive(Deref, DerefMut, Default)]
+pub struct RootNodeRes(pub Option<Gd<Node3D>>);
 
-#[derive(Deref, DerefMut)]
-pub struct SceneTreeRes(pub Gd<godot::prelude::SceneTree>);
+#[derive(Default)]
+pub struct SceneTreeRes(pub Option<Gd<SceneTree>>);
 
-#[derive(Deref, DerefMut)]
-pub struct PlayerNode {
-    pub player: Gd<CharacterBody3D>,
+impl ops::Deref for SceneTreeRes {
+    type Target = Gd<SceneTree>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.unwrap()
+    }
+}
+
+impl ops::DerefMut for SceneTreeRes {
+    fn deref_mut(&mut self) -> &mut Gd<SceneTree> {
+        &mut self.0.unwrap()
+    }
+}
+
+#[derive(Deref, DerefMut, Default)]
+pub struct PlayerNodeRes {
+    pub player: Option<Gd<CharacterBody3D>>,
 }
 
 #[derive(Deref, DerefMut, Resource)]
-pub struct Dt(pub f32);
+pub struct DtRes(pub f32);
 
-#[derive(Deref, DerefMut, Resource)]
-pub struct UniverseEventStorage(pub Vec<UniverseEvent>);
-
-#[derive(Deref, DerefMut, Resource)]
-pub struct EvCtx(pub UiEventCtx);
-
-#[derive(Deref, DerefMut, Resource)]
-pub struct CurrentFacing(pub BuildingFacing);
+impl Default for DtRes {
+    fn default() -> Self {
+        Self(1.0 / 60.0)
+    }
+}
 
 #[derive(Deref, DerefMut, Resource, Default)]
-pub struct CurrentPlayerRotation(pub f32);
+pub struct UniverseEventStorageRes(pub Vec<UniverseEvent>);
+
+#[derive(Deref, DerefMut, Resource, Default)]
+pub struct EvCtxRes(pub UiEventCtx);
+
+#[derive(Deref, DerefMut, Resource, Default)]
+pub struct CurrentFacingRes(pub BuildingFacing);
+
+#[derive(Deref, DerefMut, Resource, Default)]
+pub struct CurrentPlayerRotationRes(pub f32);

@@ -9,10 +9,13 @@ use universe::mcs::{PlayerID, VesselID};
 
 use crate::universe::{self, ui_events::UiEventCtx, Universe};
 
+pub(crate) mod uecs;
+
 use self::{
     resources::{
-        CurrentFacing, CurrentPlayer, CurrentPlayerRotation, CurrentVessel, Dt, EvCtx, InputState,
-        PlayerNode, RootNode, SceneTreeRes, UniverseEventStorage, UniverseResource,
+        CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
+        EvCtxRes, InputStateRes, PlayerNodeRes, RootNodeRes, SceneTreeRes, UniverseEventStorageRes,
+        UniverseRes,
     },
     systems::{
         building_facing, building_placer, building_remover, player_controls, update_current_vessel,
@@ -54,12 +57,12 @@ impl Ui {
 
         schedule_render.add_systems(update_player_positions);
 
-        world.insert_resource(CurrentVessel(VesselID::default()));
-        world.insert_resource(Dt(1.0 / 60.0));
-        world.insert_non_send_resource(None::<PlayerNode>);
+        world.insert_resource(CurrentVesselRes(VesselID::default()));
+        world.insert_resource(DtRes(1.0 / 60.0));
+        world.insert_non_send_resource(None::<PlayerNodeRes>);
         world.insert_non_send_resource(PlacerLocal::default());
-        world.insert_resource(CurrentFacing(universe::rotations::BuildingFacing::Px));
-        world.insert_resource(CurrentPlayerRotation::default());
+        world.insert_resource(CurrentFacingRes(universe::rotations::BuildingFacing::Px));
+        world.insert_resource(CurrentPlayerRotationRes::default());
 
         Self {
             world,
@@ -71,31 +74,32 @@ impl Ui {
     pub fn add_temporal_resources(
         &mut self,
         universe: Arc<Universe>,
-        input: InputState,
+        input: InputStateRes,
         root: Gd<Node3D>,
         my_id: PlayerID,
     ) {
-        self.world.insert_resource(UniverseResource(universe));
+        self.world.insert_resource(UniverseRes(Some(universe)));
         self.world.insert_resource(input);
         self.world
-            .insert_non_send_resource(SceneTreeRes(root.get_tree().unwrap()));
-        self.world.insert_non_send_resource(RootNode(root));
-        self.world.insert_resource(CurrentPlayer(my_id));
-        self.world.insert_resource(UniverseEventStorage(Vec::new()));
+            .insert_non_send_resource(SceneTreeRes(Some(root.get_tree().unwrap())));
+        self.world.insert_non_send_resource(RootNodeRes(Some(root)));
+        self.world.insert_resource(CurrentPlayerRes(Some(my_id)));
+        self.world
+            .insert_resource(UniverseEventStorageRes(Vec::new()));
     }
     pub fn remove_temporal_resources(&mut self) -> Vec<universe::UniverseEvent> {
-        self.world.remove_resource::<UniverseResource>();
-        self.world.remove_non_send_resource::<RootNode>();
+        self.world.remove_resource::<UniverseRes>();
+        self.world.remove_non_send_resource::<RootNodeRes>();
         self.world
-            .remove_resource::<UniverseEventStorage>()
+            .remove_resource::<UniverseEventStorageRes>()
             .unwrap()
             .0
     }
 
     pub fn on_update(&mut self, evctx: UiEventCtx) {
-        self.world.insert_resource(EvCtx(evctx));
+        self.world.insert_resource(EvCtxRes(evctx));
         self.schedule_update.run(&mut self.world);
-        self.world.remove_resource::<EvCtx>();
+        self.world.remove_resource::<EvCtxRes>();
         self.world.clear_trackers();
     }
     pub fn on_render(&mut self) {

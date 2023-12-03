@@ -12,10 +12,11 @@ pub mod internal;
 mod query_world;
 mod system_parameter;
 
-pub use query_world::{ParamGuard, QueryWorld, WorldRun};
+pub use engine_macro::gen_storage_for_world;
 
 pub use crate::{
     component_traits::{Bundle, Component},
+    query_world::{ParamGuard, QueryWorld, WorldRun},
     system_parameter::{commands::CommandsG, QueryG, WithG, WithoutG},
 };
 

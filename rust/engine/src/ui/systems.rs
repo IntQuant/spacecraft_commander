@@ -27,18 +27,22 @@ use crate::{
 };
 
 use super::resources::{
-    CurrentFacing, CurrentPlayer, CurrentPlayerRotation, CurrentVessel, Dt, EvCtx, InputState,
-    PlayerNode, RootNode, SceneTreeRes, UniverseEventStorage, UniverseResource,
+    CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
+    EvCtxRes, InputStateRes, PlayerNodeRes, RootNodeRes, SceneTreeRes, UniverseEventStorageRes,
+    UniverseRes,
 };
 
-pub fn vessel_upload_condition(current_vessel: Res<CurrentVessel>, evctx: Res<EvCtx>) -> bool {
+pub fn vessel_upload_condition(
+    current_vessel: Res<CurrentVesselRes>,
+    evctx: Res<EvCtxRes>,
+) -> bool {
     current_vessel.is_changed() || !evctx.tiles_changed.is_empty()
 }
 
 pub fn update_current_vessel(
-    current_player: Res<CurrentPlayer>,
-    mut current_vessel: ResMut<CurrentVessel>,
-    universe: Res<UniverseResource>,
+    current_player: Res<CurrentPlayerRes>,
+    mut current_vessel: ResMut<CurrentVesselRes>,
+    universe: Res<UniverseRes>,
 ) {
     if let Some(player) = universe.player_info(**current_player) {
         if player.vessel != current_vessel.0 {
@@ -49,10 +53,10 @@ pub fn update_current_vessel(
 }
 
 pub fn upload_current_vessel_tiles(
-    universe: Res<UniverseResource>,
-    current_vessel: Res<CurrentVessel>,
+    universe: Res<UniverseRes>,
+    current_vessel: Res<CurrentVesselRes>,
     mut scene_tree: NonSendMut<SceneTreeRes>,
-    mut root_node: NonSendMut<RootNode>,
+    mut root_node: NonSendMut<RootNodeRes>,
 ) {
     info!("Uploading vessel");
 
@@ -83,12 +87,12 @@ pub fn upload_current_vessel_tiles(
 }
 
 pub fn update_players_on_vessel(
-    universe: Res<UniverseResource>,
-    current_player: Res<CurrentPlayer>,
-    current_vessel: Res<CurrentVessel>,
+    universe: Res<UniverseRes>,
+    current_player: Res<CurrentPlayerRes>,
+    current_vessel: Res<CurrentVesselRes>,
     mut scene_tree: NonSendMut<SceneTreeRes>,
-    mut root_node: NonSendMut<RootNode>,
-    mut player_node_res: NonSendMut<Option<PlayerNode>>,
+    mut root_node: NonSendMut<RootNodeRes>,
+    mut player_node_res: NonSendMut<Option<PlayerNodeRes>>,
 ) {
     let binding = universe.world.query_world_shared();
     let mut players = binding.parameter::<mcs::Query<(EntityID, &Player)>>();
@@ -113,7 +117,7 @@ pub fn update_players_on_vessel(
         player_node.set("player".into(), player_id.to_godot());
         let is_me = universe.player_ent_id(current_player.0) == Some(player_id);
         if is_me {
-            *player_node_res = Some(PlayerNode {
+            *player_node_res = Some(PlayerNodeRes {
                 player: player_node.clone().cast(),
             });
         }
@@ -133,11 +137,11 @@ pub fn update_players_on_vessel(
 }
 
 pub fn player_controls(
-    mut player_node: NonSendMut<Option<PlayerNode>>,
-    dt: Res<Dt>,
-    input: Res<InputState>,
-    mut events: ResMut<UniverseEventStorage>,
-    mut current_player_rotation: ResMut<CurrentPlayerRotation>,
+    mut player_node: NonSendMut<Option<PlayerNodeRes>>,
+    dt: Res<DtRes>,
+    input: Res<InputStateRes>,
+    mut events: ResMut<UniverseEventStorageRes>,
+    mut current_player_rotation: ResMut<CurrentPlayerRotationRes>,
 ) {
     let Some(player_node) = player_node.as_mut() else {
         return;
@@ -196,8 +200,8 @@ pub struct PlacerLocal {
 }
 
 pub fn building_facing(
-    mut current_facing: ResMut<CurrentFacing>,
-    current_player_rotation: Res<CurrentPlayerRotation>,
+    mut current_facing: ResMut<CurrentFacingRes>,
+    current_player_rotation: Res<CurrentPlayerRotationRes>,
 ) {
     let input = Input::singleton();
     if input.is_action_pressed("g_rot_en".into()) {
@@ -220,11 +224,11 @@ pub fn building_facing(
 }
 
 pub fn building_placer(
-    mut player_node: NonSendMut<Option<PlayerNode>>,
-    mut events: ResMut<UniverseEventStorage>,
-    mut root_node: NonSendMut<RootNode>,
+    mut player_node: NonSendMut<Option<PlayerNodeRes>>,
+    mut events: ResMut<UniverseEventStorageRes>,
+    mut root_node: NonSendMut<RootNodeRes>,
     mut local: NonSendMut<PlacerLocal>,
-    current_facing: Res<CurrentFacing>,
+    current_facing: Res<CurrentFacingRes>,
 ) {
     let Some(player_node) = player_node.as_mut() else {
         return;
@@ -257,8 +261,8 @@ pub fn building_placer(
 }
 
 pub fn building_remover(
-    mut player_node: NonSendMut<Option<PlayerNode>>,
-    mut events: ResMut<UniverseEventStorage>,
+    mut player_node: NonSendMut<Option<PlayerNodeRes>>,
+    mut events: ResMut<UniverseEventStorageRes>,
 ) {
     let Some(player_node) = player_node.as_mut() else {
         return;
@@ -285,8 +289,8 @@ pub fn building_remover(
 
 pub fn update_player_positions(
     mut scene_tree: NonSendMut<SceneTreeRes>,
-    universe: Res<UniverseResource>,
-    current_player: Res<CurrentPlayer>,
+    universe: Res<UniverseRes>,
+    current_player: Res<CurrentPlayerRes>,
 ) {
     let players = scene_tree.get_nodes_in_group("players".into());
     for player in players.iter_shared() {

@@ -14,6 +14,8 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let mut gen_state = GenState::None;
     let mut component_names = Vec::new();
     let mut resource_names = Vec::new();
+    let mut serialize_en = true;
+    let mut clone_en = true;
 
     let mut input_iter = input.into_iter();
     while let Some(token_raw) = input_iter.next() {
@@ -24,6 +26,12 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
                 match new_mode.as_str() {
                     "components" => gen_state = GenState::Components,
                     "resources" => gen_state = GenState::Resources,
+                    "no_clone" => {
+                        clone_en = false;
+                    }
+                    "no_serialize" => {
+                        serialize_en = false;
+                    }
                     _ => panic!("Unknown requested state: {}", new_mode),
                 }
             }
@@ -74,9 +82,25 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let counter_resources = 0..(resource_names.len() as u32);
     let counter_resources_2 = 0..(resource_names.len() as u32);
 
+    let serialize_derives = if serialize_en {
+        quote!(
+            #[derive(::serde::Serialize, ::serde::Deserialize)]
+        )
+    } else {
+        quote!()
+    };
+    let clone_derives = if serialize_en {
+        quote!(
+            #[derive(Clone)]
+        )
+    } else {
+        quote!()
+    };
+
     quote!(
-        #[derive(Default, Clone)]
-        #[derive(::serde::Serialize, ::serde::Deserialize)]
+        #[derive(Default)]
+        #clone_derives
+        #serialize_derives
         pub struct ComponentStorage {
             #( #component_storages ,)*
             #(#resource_storage_names: ::engine_ecs::internal::ResourceStorage<#resource_types>,)*
