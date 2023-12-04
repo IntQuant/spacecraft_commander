@@ -18,7 +18,11 @@ use system_parameter::changes::{ChangeManager, ReadOnly, WriteOnly};
 pub use crate::{
     component_traits::{Bundle, Component},
     query_world::{ParamGuard, QueryWorld, WorldRun},
-    system_parameter::{changes::ChangesG, commands::CommandsG, query::QueryG, WithG, WithoutG},
+    system_parameter::{
+        changes::ChangesG,
+        commands::CommandsG,
+        query::{QueryG, WithG, WithoutG},
+    },
 };
 
 new_key_type! { pub struct EntityID; }

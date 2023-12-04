@@ -1,17 +1,12 @@
 use crate::DynDispath;
-use std::marker::PhantomData;
 
-use engine_macro::gen_query_param_tuple_impls;
 use smallvec::SmallVec;
 
 pub(crate) mod changes;
 pub(crate) mod commands;
 pub(crate) mod query;
 
-use crate::{
-    query_world::QueryWorld, ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeID,
-    TypeIndex,
-};
+use crate::{query_world::QueryWorld, ArchetypeInfo, TypeIndex};
 
 /// # Safety
 ///
@@ -225,64 +220,6 @@ impl ComponentRequests {
     pub(crate) fn release(&mut self) {
         self.requests.clear();
         self.resource_requests.clear();
-    }
-}
-
-/// # Safety
-///
-/// Requests should cover all components that are accessed.
-pub unsafe trait QueryParameter<'wrld, Storage: DynDispath> {
-    fn add_requests(req: &mut ComponentRequests);
-    /// # Safety
-    ///
-    /// Assumes that requests do not "collide" with each other.
-    unsafe fn get_from_world(
-        world: &'wrld QueryWorld<'wrld, Storage>,
-        archetype: ArchetypeID,
-        index: InArchetypeID,
-        ent_id: EntityID,
-    ) -> Self;
-}
-
-unsafe impl<'wrld, Storage: DynDispath> QueryParameter<'wrld, Storage> for EntityID {
-    fn add_requests(_req: &mut ComponentRequests) {}
-
-    unsafe fn get_from_world(
-        _world: &QueryWorld<Storage>,
-        _archetype: ArchetypeID,
-        _index: InArchetypeID,
-        ent_id: EntityID,
-    ) -> Self {
-        ent_id
-    }
-}
-
-gen_query_param_tuple_impls!(1);
-gen_query_param_tuple_impls!(2);
-gen_query_param_tuple_impls!(3);
-gen_query_param_tuple_impls!(4);
-gen_query_param_tuple_impls!(5);
-gen_query_param_tuple_impls!(6);
-
-pub trait QueryLimits {
-    fn add_requests(req: &mut ComponentRequests);
-}
-
-impl QueryLimits for () {
-    fn add_requests(_req: &mut ComponentRequests) {}
-}
-
-pub struct WithG<Storage, T: Component<Storage>>(PhantomData<fn() -> (T, Storage)>);
-pub struct WithoutG<Storage, T: Component<Storage>>(PhantomData<fn() -> (T, Storage)>);
-
-impl<Storage, T: Component<Storage>> QueryLimits for WithG<Storage, T> {
-    fn add_requests(req: &mut ComponentRequests) {
-        req.require(T::TYPE_INDEX);
-    }
-}
-impl<Storage, T: Component<Storage>> QueryLimits for WithoutG<Storage, T> {
-    fn add_requests(req: &mut ComponentRequests) {
-        req.exclude(T::TYPE_INDEX);
     }
 }
 

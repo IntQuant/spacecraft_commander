@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{ecs_cell::EcsCell, StorageID, TypeIndex};
 
 pub use crate::component_traits::TypeIndexStorage;
-pub use crate::system_parameter::{ComponentRequests, QueryParameter, SystemParameter};
+pub use crate::system_parameter::{query::QueryParameter, ComponentRequests, SystemParameter};
 pub use crate::InArchetypeID;
 pub use smallvec::SmallVec;
 
