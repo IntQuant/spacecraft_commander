@@ -3,7 +3,7 @@ use std::{marker::PhantomData, sync::Arc};
 use crossbeam_queue::SegQueue;
 use smallvec::SmallVec;
 
-use crate::World;
+use crate::{internal::DynDispath, World};
 
 use super::{ComponentRequests, SystemParameter};
 
@@ -25,7 +25,7 @@ impl<Storage> CommandsG<Storage> {
     }
 }
 
-unsafe impl<'a, Storage> SystemParameter<'a, Storage> for CommandsG<Storage> {
+unsafe impl<'a, Storage: DynDispath> SystemParameter<'a, Storage> for CommandsG<Storage> {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
         SmallVec::new()
     }

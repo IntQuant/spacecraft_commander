@@ -1,9 +1,12 @@
+use crate::DynDispath;
 use std::marker::PhantomData;
 
 use engine_macro::gen_query_param_tuple_impls;
 use smallvec::SmallVec;
 
+pub(crate) mod changes;
 pub(crate) mod commands;
+pub(crate) mod query;
 
 use crate::{
     query_world::QueryWorld, ArchetypeID, ArchetypeInfo, Component, EntityID, InArchetypeID,
@@ -13,15 +16,15 @@ use crate::{
 /// # Safety
 ///
 /// Requests should cover all things that are accessed.
-pub unsafe trait SystemParameter<'a, Storage> {
-    fn requests() -> SmallVec<[ComponentRequests; 8]>;
+pub unsafe trait SystemParameter<'a, Storage: DynDispath> {
+    fn requests() -> SmallVec<[ComponentRequests; 8]> {
+        SmallVec::new()
+    }
     /// # Safety
     ///
     /// Assumes that requests do not "collide" with each other.
     unsafe fn from_world(world: &'a QueryWorld<'a, Storage>) -> Self;
 }
-
-pub(crate) mod query;
 
 #[derive(Debug)]
 pub(crate) struct Request {
@@ -228,7 +231,7 @@ impl ComponentRequests {
 /// # Safety
 ///
 /// Requests should cover all components that are accessed.
-pub unsafe trait QueryParameter<'wrld, Storage> {
+pub unsafe trait QueryParameter<'wrld, Storage: DynDispath> {
     fn add_requests(req: &mut ComponentRequests);
     /// # Safety
     ///
@@ -241,7 +244,7 @@ pub unsafe trait QueryParameter<'wrld, Storage> {
     ) -> Self;
 }
 
-unsafe impl<'wrld, Storage> QueryParameter<'wrld, Storage> for EntityID {
+unsafe impl<'wrld, Storage: DynDispath> QueryParameter<'wrld, Storage> for EntityID {
     fn add_requests(_req: &mut ComponentRequests) {}
 
     unsafe fn get_from_world(

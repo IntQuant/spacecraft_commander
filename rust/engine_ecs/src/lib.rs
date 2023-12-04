@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 use internal::{ComponentStorageProvider, DynDispath, OfResources, ResourceStorageProvider};
 use query_world::WorldRef;
@@ -13,11 +13,12 @@ mod query_world;
 mod system_parameter;
 
 pub use engine_macro::gen_storage_for_world;
+use system_parameter::changes::{ChangeManager, ReadOnly, WriteOnly};
 
 pub use crate::{
     component_traits::{Bundle, Component},
     query_world::{ParamGuard, QueryWorld, WorldRun},
-    system_parameter::{commands::CommandsG, query::QueryG, WithG, WithoutG},
+    system_parameter::{changes::ChangesG, commands::CommandsG, query::QueryG, WithG, WithoutG},
 };
 
 new_key_type! { pub struct EntityID; }
@@ -114,6 +115,9 @@ pub struct World<Storage> {
     entities: slotmapd::HopSlotMap<EntityID, EntityInfo>,
     archeman: ArchetypeManager,
     storage: Storage,
+
+    changes_prev: ChangeManager<Storage, ReadOnly>,
+    changes_new: ChangeManager<Storage, WriteOnly>,
 }
 
 impl<Storage: DynDispath + Default> Default for World<Storage> {
@@ -122,6 +126,8 @@ impl<Storage: DynDispath + Default> Default for World<Storage> {
             entities: Default::default(),
             archeman: Default::default(),
             storage: Default::default(),
+            changes_prev: Default::default(),
+            changes_new: Default::default(),
         }
     }
 }
@@ -249,8 +255,10 @@ impl<Storage: DynDispath> World<Storage> {
 
     pub fn resource_mut<R>(&mut self) -> &mut R
     where
+        R: LocalTypeIndex<OfResources<Storage>>,
         Storage: ResourceStorageProvider<R>,
     {
+        self.changes_new.mark_resource_as_changed(R::TYPE_INDEX);
         self.storage.storage_mut().get_mut()
     }
 
@@ -276,5 +284,13 @@ impl<Storage: DynDispath> World<Storage> {
 
     pub fn query_world(&mut self) -> query_world::QueryWorld<Storage> {
         QueryWorld::new(WorldRef::Exclusive(self))
+    }
+
+    fn cycle_change_managers(&mut self) {
+        self.changes_prev = mem::replace(&mut self.changes_new, Default::default()).to_read_only();
+    }
+
+    pub fn next_cycle(&mut self) {
+        self.cycle_change_managers()
     }
 }

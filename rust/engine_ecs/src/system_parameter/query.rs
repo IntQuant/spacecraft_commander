@@ -1,18 +1,23 @@
 use super::{QueryLimits, QueryParameter, SystemParameter};
 use crate::{
-    query_world::QueryWorld, system_parameter::ComponentRequests, ArchetypeID, EntityID,
-    InArchetypeID,
+    internal::DynDispath, query_world::QueryWorld, system_parameter::ComponentRequests,
+    ArchetypeID, EntityID, InArchetypeID,
 };
 use smallvec::SmallVec;
 use std::marker::PhantomData;
 
 /// Query that is Generic over storage.
-pub struct QueryG<'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits = ()> {
+pub struct QueryG<
+    'wrld,
+    Storage: DynDispath,
+    Param: QueryParameter<'wrld, Storage>,
+    Limits: QueryLimits = (),
+> {
     pub(crate) world: &'wrld QueryWorld<'wrld, Storage>,
     pub(crate) _phantom: PhantomData<fn() -> (Param, Limits)>,
 }
 
-unsafe impl<'wrld, T: QueryParameter<'wrld, Storage>, Limits: QueryLimits, Storage>
+unsafe impl<'wrld, T: QueryParameter<'wrld, Storage>, Limits: QueryLimits, Storage: DynDispath>
     SystemParameter<'wrld, Storage> for QueryG<'wrld, Storage, T, Limits>
 {
     fn requests() -> SmallVec<[ComponentRequests; 8]> {
@@ -32,15 +37,25 @@ unsafe impl<'wrld, T: QueryParameter<'wrld, Storage>, Limits: QueryLimits, Stora
     }
 }
 
-pub struct QueryIter<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits>
-{
+pub struct QueryIter<
+    'a,
+    'wrld,
+    Storage: DynDispath,
+    Param: QueryParameter<'wrld, Storage>,
+    Limits: QueryLimits,
+> {
     pub(crate) query: &'a mut QueryG<'wrld, Storage, Param, Limits>,
     pub(crate) arche_index: ArchetypeID,
     pub(crate) in_arche_index: InArchetypeID,
 }
 
-impl<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits>
-    QueryIter<'a, 'wrld, Storage, Param, Limits>
+impl<
+        'a,
+        'wrld,
+        Storage: DynDispath,
+        Param: QueryParameter<'wrld, Storage>,
+        Limits: QueryLimits,
+    > QueryIter<'a, 'wrld, Storage, Param, Limits>
 {
     pub(crate) fn skip_to_valid_arche(&mut self) {
         let mut req = ComponentRequests::default();
@@ -64,8 +79,13 @@ impl<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLim
     }
 }
 
-impl<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLimits> Iterator
-    for QueryIter<'a, 'wrld, Storage, Param, Limits>
+impl<
+        'a,
+        'wrld,
+        Storage: DynDispath,
+        Param: QueryParameter<'wrld, Storage>,
+        Limits: QueryLimits,
+    > Iterator for QueryIter<'a, 'wrld, Storage, Param, Limits>
 {
     type Item = Param;
 
@@ -96,7 +116,7 @@ impl<'a, 'wrld, Storage, Param: QueryParameter<'wrld, Storage>, Limits: QueryLim
     }
 }
 
-impl<'wrld, T, Limits, Storage> QueryG<'wrld, Storage, T, Limits>
+impl<'wrld, T, Limits, Storage: DynDispath> QueryG<'wrld, Storage, T, Limits>
 where
     T: QueryParameter<'wrld, Storage>,
     Limits: QueryLimits,

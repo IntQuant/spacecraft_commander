@@ -13,6 +13,8 @@ pub trait ComponentStorageProvider<T> {
 }
 
 pub trait DynDispath {
+    const RESOURCE_TYPES: TypeIndex;
+
     fn dispath_mut<F, Ret>(&mut self, type_index: TypeIndex, f: F) -> Ret
     where
         F: FnOnce(&mut dyn DynComponentList) -> Ret;

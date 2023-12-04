@@ -82,6 +82,8 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     let counter_resources = 0..(resource_names.len() as u32);
     let counter_resources_2 = 0..(resource_names.len() as u32);
 
+    let resource_type_count = resource_names.len() as u32;
+
     let serialize_derives = if serialize_en {
         quote!(
             #[derive(::serde::Serialize, ::serde::Deserialize)]
@@ -136,6 +138,8 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         )*
 
         impl ::engine_ecs::internal::DynDispath for ComponentStorage {
+            const RESOURCE_TYPES: u32 = #resource_type_count;
+
             fn dispath_mut<F, Ret>(&mut self, index: ::engine_ecs::TypeIndex, f: F) -> Ret
             where
                 F: FnOnce(&mut dyn ::engine_ecs::internal::DynComponentList) -> Ret
@@ -228,6 +232,7 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         pub type With<T> = ::engine_ecs::WithG<ComponentStorage, T>;
         pub type Without<T> = ::engine_ecs::WithoutG<ComponentStorage, T>;
         pub type Commands = ::engine_ecs::CommandsG<ComponentStorage>;
+        pub type Changes<'a> = ::engine_ecs::ChangesG<'a, ComponentStorage>;
     )
     .into()
 }
@@ -288,7 +293,7 @@ pub fn gen_query_param_tuple_impls(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote!(
-        unsafe impl<'wrld, Storage, #(#type_names: QueryParameter<'wrld, Storage>,)*> QueryParameter<'wrld, Storage> for (#(#type_names,)*)
+        unsafe impl<'wrld, Storage: DynDispath, #(#type_names: QueryParameter<'wrld, Storage>,)*> QueryParameter<'wrld, Storage> for (#(#type_names,)*)
         {
             fn add_requests(req: &mut ComponentRequests) {
                 #(#type_names::add_requests(req);)*
@@ -374,7 +379,7 @@ pub fn gen_world_run_impls(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote!(
-        impl<'wrld, Storage, F, Ret, #(#type_names,)*> WorldRun<'wrld, F, Ret, (#(#type_names,)*)> for QueryWorld<'wrld, Storage>
+        impl<'wrld, Storage: DynDispath, F, Ret, #(#type_names,)*> WorldRun<'wrld, F, Ret, (#(#type_names,)*)> for QueryWorld<'wrld, Storage>
         where
             F: FnOnce(#(#type_names),*) -> Ret,
             #(#type_names: SystemParameter<'wrld, Storage>,)*

@@ -68,12 +68,14 @@ impl Ui {
     }
 
     pub fn on_update(&mut self, evctx: UiEventCtx) {
+        self.world.next_cycle();
+
         *self.world.resource_mut() = EvCtxRes(evctx);
         let query_world = self.world.query_world();
         query_world.run(update_current_vessel);
         query_world.run(update_players_on_vessel);
         let upload_cond = query_world.run(vessel_upload_condition);
-        if upload_cond || self.first_update {
+        if upload_cond {
             query_world.run(upload_current_vessel_tiles);
         }
         query_world.run(player_controls);

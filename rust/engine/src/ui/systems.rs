@@ -22,26 +22,37 @@ use crate::{
     BaseStaticBody, BodyKind,
 };
 
-use super::resources::{
-    CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
-    EvCtxRes, InputStateRes, PlacerRes, PlayerNodeRes, RootNodeRes, SceneTreeRes,
-    UniverseEventStorageRes, UniverseRes,
+use super::{
+    resources::{
+        CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
+        EvCtxRes, InputStateRes, PlacerRes, PlayerNodeRes, RootNodeRes, SceneTreeRes,
+        UniverseEventStorageRes, UniverseRes,
+    },
+    uecs::{Changes, Commands},
 };
 
-pub fn vessel_upload_condition(_current_vessel: &CurrentVesselRes, evctx: &EvCtxRes) -> bool {
+pub fn vessel_upload_condition(
+    _current_vessel: &CurrentVesselRes,
+    evctx: &EvCtxRes,
+    changes: Changes,
+) -> bool {
     //current_vessel.is_changed() || !evctx.tiles_changed.is_empty() // TODO
-    !evctx.tiles_changed.is_empty()
+    changes.resource_changed::<CurrentVesselRes>() || !evctx.tiles_changed.is_empty()
 }
 
 pub fn update_current_vessel(
     current_player: &CurrentPlayerRes,
-    current_vessel: &mut CurrentVesselRes,
+    current_vessel: &CurrentVesselRes,
     universe: &UniverseRes,
+    commands: Commands,
 ) {
     if let Some(player) = current_player.0.and_then(|x| universe.player_info(x)) {
         if player.vessel != current_vessel.0 {
-            info!("Current vessel changed");
-            current_vessel.0 = player.vessel;
+            let vessel = player.vessel;
+            commands.submit(move |world| {
+                info!("Current vessel changed");
+                world.resource_mut::<CurrentVesselRes>().0 = vessel;
+            });
         }
     } else {
         warn!("Player does not exist");

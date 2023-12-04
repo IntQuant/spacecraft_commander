@@ -1,8 +1,9 @@
 use super::{ArchetypeID, InArchetypeID, StorageID, World};
 use crate::{
     component_traits::Component,
-    internal::{ComponentStorageProvider, ResourceStorageProvider},
+    internal::{ComponentStorageProvider, DynDispath, OfResources, ResourceStorageProvider},
     system_parameter::{commands::CommandBuffer, ComponentRequests, SystemParameter},
+    LocalTypeIndex,
 };
 use engine_macro::gen_world_run_impls;
 use std::{
@@ -35,14 +36,14 @@ impl<'wrld, Storage> Deref for WorldRef<'wrld, Storage> {
     }
 }
 
-pub struct QueryWorld<'wrld, Storage> {
+pub struct QueryWorld<'wrld, Storage: DynDispath> {
     pub(crate) inner: WorldRef<'wrld, Storage>,
     currently_requested: RefCell<Vec<ComponentRequests>>,
     parameter_index: RefCell<usize>,
     pub(crate) command_buffer: CommandBuffer<Storage>,
 }
 
-impl<'wrld, Storage> Drop for QueryWorld<'wrld, Storage> {
+impl<'wrld, Storage: DynDispath> Drop for QueryWorld<'wrld, Storage> {
     fn drop(&mut self) {
         let mut cmd_buf = Vec::with_capacity(self.command_buffer.len());
         while let Some(cmd) = self.command_buffer.pop() {
@@ -55,13 +56,13 @@ impl<'wrld, Storage> Drop for QueryWorld<'wrld, Storage> {
     }
 }
 
-pub struct ParamGuard<'wlrd, 'a, Storage, Param> {
+pub struct ParamGuard<'wlrd, 'a, Storage: DynDispath, Param> {
     pub(crate) inner: Param,
     pub(crate) world: &'a QueryWorld<'wlrd, Storage>,
     pub(crate) holds: Range<usize>,
 }
 
-impl<'wlrd, 'a, Storage, Param> Deref for ParamGuard<'wlrd, 'a, Storage, Param> {
+impl<'wlrd, 'a, Storage: DynDispath, Param> Deref for ParamGuard<'wlrd, 'a, Storage, Param> {
     type Target = Param;
 
     fn deref(&self) -> &Self::Target {
@@ -69,19 +70,19 @@ impl<'wlrd, 'a, Storage, Param> Deref for ParamGuard<'wlrd, 'a, Storage, Param> 
     }
 }
 
-impl<'wlrd, 'a, Storage, Param> DerefMut for ParamGuard<'wlrd, 'a, Storage, Param> {
+impl<'wlrd, 'a, Storage: DynDispath, Param> DerefMut for ParamGuard<'wlrd, 'a, Storage, Param> {
     fn deref_mut(&mut self) -> &mut Param {
         &mut self.inner
     }
 }
 
-impl<'wlrd, 'a, Storage, Param> Drop for ParamGuard<'wlrd, 'a, Storage, Param> {
+impl<'wlrd, 'a, Storage: DynDispath, Param> Drop for ParamGuard<'wlrd, 'a, Storage, Param> {
     fn drop(&mut self) {
         self.world.release_parameter(self.holds.clone())
     }
 }
 
-impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
+impl<'wrld, Storage: DynDispath> QueryWorld<'wrld, Storage> {
     pub(crate) fn new(world_ref: WorldRef<'wrld, Storage>) -> Self {
         QueryWorld {
             inner: world_ref,
@@ -120,10 +121,12 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     where
         Storage: ComponentStorageProvider<T>,
     {
-        self.inner
-            .storage
-            .storage()
-            .get_mut_unsafe(storage, index_in_arche)
+        unsafe {
+            self.inner
+                .storage
+                .storage()
+                .get_mut_unsafe(storage, index_in_arche)
+        }
     }
     pub fn storage_for_archetype<T: Component<Storage>>(
         &self,
@@ -149,9 +152,15 @@ impl<'wrld, Storage> QueryWorld<'wrld, Storage> {
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn resource_mut<R>(&self) -> &mut R
     where
+        R: LocalTypeIndex<OfResources<Storage>>,
         Storage: ResourceStorageProvider<R>,
     {
-        self.inner.storage.storage().get_mut_unsafe()
+        unsafe {
+            self.inner
+                .changes_new
+                .mark_resource_as_changed_unsafe(R::TYPE_INDEX);
+            self.inner.storage.storage().get_mut_unsafe()
+        }
     }
 
     pub fn parameter<Param: SystemParameter<'wrld, Storage>>(
