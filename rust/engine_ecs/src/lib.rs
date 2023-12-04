@@ -17,7 +17,7 @@ pub use engine_macro::gen_storage_for_world;
 pub use crate::{
     component_traits::{Bundle, Component},
     query_world::{ParamGuard, QueryWorld, WorldRun},
-    system_parameter::{commands::CommandsG, QueryG, WithG, WithoutG},
+    system_parameter::{commands::CommandsG, query::QueryG, WithG, WithoutG},
 };
 
 new_key_type! { pub struct EntityID; }

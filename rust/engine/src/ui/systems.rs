@@ -43,6 +43,8 @@ pub fn update_current_vessel(
             info!("Current vessel changed");
             current_vessel.0 = player.vessel;
         }
+    } else {
+        warn!("Player does not exist");
     }
 }
 
