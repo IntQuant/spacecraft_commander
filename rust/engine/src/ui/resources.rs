@@ -109,3 +109,11 @@ pub struct CurrentPlayerRotationRes(pub f32);
 pub struct PlacerRes {
     pub temp_build_node: Option<Gd<Node3D>>,
 }
+
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub enum BuildingMode {
+    #[default]
+    Disabled,
+    Tiles,
+    Buildings,
+}

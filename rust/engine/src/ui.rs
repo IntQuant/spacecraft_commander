@@ -14,9 +14,9 @@ use self::{
         UniverseEventStorageRes, UniverseRes,
     },
     systems::{
-        building_facing, building_placer, building_remover, player_controls, update_current_vessel,
-        update_player_positions, update_players_on_vessel, upload_current_vessel_tiles,
-        vessel_upload_condition,
+        building::{build_mode_switch, building_facing, building_placer, building_remover},
+        player_controls, update_current_vessel, update_player_positions, update_players_on_vessel,
+        upload_current_vessel_tiles, vessel_upload_condition,
     },
 };
 
@@ -82,6 +82,7 @@ impl Ui {
         query_world.run(building_facing);
         query_world.run(building_placer);
         query_world.run(building_remover);
+        query_world.run(build_mode_switch);
 
         self.first_update = false;
     }

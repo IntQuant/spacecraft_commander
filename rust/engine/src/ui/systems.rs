@@ -2,34 +2,26 @@ use std::{collections::HashSet, f32::consts::PI};
 
 use engine_ecs::EntityID;
 use engine_num::Vec3;
-use godot::{
-    engine::{CharacterBody3D, RayCast3D},
-    prelude::*,
-};
+use godot::{engine::CharacterBody3D, prelude::*};
 use tracing::{info, warn};
-use universe::{
-    mcs::{self, Player, VesselTiles},
-    rotations::BuildingOrientation,
-};
+use universe::mcs::{self, Player, VesselTiles};
 
 use crate::{
-    universe::{
-        self,
-        rotations::{self},
-        tilemap::TilePos,
-    },
+    universe::{self},
     util::{FromGodot, SceneTreeExt, ToGodot},
-    BaseStaticBody, BodyKind,
+    BaseStaticBody,
 };
 
 use super::{
     resources::{
-        CurrentFacingRes, CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes,
-        EvCtxRes, InputStateRes, PlacerRes, PlayerNodeRes, RootNodeRes, SceneTreeRes,
-        UniverseEventStorageRes, UniverseRes,
+        CurrentPlayerRes, CurrentPlayerRotationRes, CurrentVesselRes, DtRes, EvCtxRes,
+        InputStateRes, PlayerNodeRes, RootNodeRes, SceneTreeRes, UniverseEventStorageRes,
+        UniverseRes,
     },
     uecs::{Changes, Commands},
 };
+
+pub mod building;
 
 pub fn vessel_upload_condition(
     _current_vessel: &CurrentVesselRes,
@@ -199,93 +191,6 @@ pub fn player_controls(
         new_position: Vec3::from_godot(player_node.get_position()),
     };
     events.0.push(event);
-}
-
-pub fn building_facing(
-    current_facing: &mut CurrentFacingRes,
-    current_player_rotation: &CurrentPlayerRotationRes,
-) {
-    let input = Input::singleton();
-    if input.is_action_pressed("g_rot_en".into()) {
-        let actions = [
-            input.is_action_just_pressed("g_rot_d".into()),
-            input.is_action_just_pressed("g_rot_w".into()),
-            input.is_action_just_pressed("g_rot_a".into()),
-            input.is_action_just_pressed("g_rot_s".into()),
-        ];
-        let action_id = actions.iter().position(|x| *x);
-        if let Some(action_id) = action_id {
-            let current = ((current_player_rotation.0 / (PI / 2.0) + 2.5) % 4.0) as u8;
-            current_facing.0 = current_facing.turn(action_id as u8, current);
-            info!(
-                "Current facing: {:?}, current: {}, rotation: {}",
-                current_facing.0, current, current_player_rotation.0
-            );
-        }
-    }
-}
-
-pub fn building_placer(
-    player_node: &mut PlayerNodeRes,
-    events: &mut UniverseEventStorageRes,
-    root_node: &mut RootNodeRes,
-    local: &mut PlacerRes,
-    current_facing: &CurrentFacingRes,
-) {
-    if player_node.player.is_none() {
-        return;
-    };
-
-    let pos = player_node.get_position();
-    let cam = player_node
-        .get_node("Camera3D".into())
-        .unwrap()
-        .cast::<Node3D>();
-    let dir = -cam.get_global_transform().basis.col_c();
-    let place_pos = pos + dir * 3.0;
-    let place_tile = TilePos::from_godot(place_pos);
-    let place_pos_q = place_tile.to_godot();
-    if let Some(b_node) = &mut local.temp_build_node {
-        b_node.set_position(place_pos_q);
-        b_node.set_basis(current_facing.to_basis().to_godot());
-    } else {
-        let wall_scene = load::<PackedScene>("vessel/generic/wall_virtual.tscn");
-        let node = wall_scene.instantiate().unwrap();
-        root_node.add_child(node.clone());
-        let node = node.cast::<Node3D>();
-        local.temp_build_node = Some(node);
-    }
-    if Input::singleton().is_action_just_pressed("g_place".into()) {
-        events.push(universe::UniverseEvent::PlaceTile {
-            position: place_tile,
-            orientation: BuildingOrientation::new(current_facing.0, rotations::BuildingRotation::N),
-        })
-    }
-}
-
-pub fn building_remover(player_node: &mut PlayerNodeRes, events: &mut UniverseEventStorageRes) {
-    if player_node.player.is_none() {
-        return;
-    };
-
-    let raycast = player_node
-        .get_node("Camera3D/RayCast3D".into())
-        .unwrap()
-        .cast::<RayCast3D>();
-    let hit = raycast
-        .get_collider()
-        .and_then(|c| c.try_cast::<BaseStaticBody>());
-
-    if let Some(hit) = hit {
-        if Input::singleton().is_action_just_pressed("g_remove".into()) {
-            info!("Remove {:?}", hit.bind());
-            let Some(kind) = hit.bind().kind else {
-                return;
-            };
-            let BodyKind::Tile { index, position } = kind;
-            events.push(universe::UniverseEvent::RemoveTile { position, index });
-        }
-    }
 }
 
 pub fn update_player_positions(
