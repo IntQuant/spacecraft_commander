@@ -145,7 +145,9 @@ pub fn building_remover(player_node: &mut PlayerNodeRes, events: &mut UniverseEv
                 BodyKind::Tile { index, position } => {
                     events.push(universe::UniverseEvent::RemoveTile { position, index })
                 }
-                BodyKind::Building { entity } => todo!(),
+                BodyKind::Building { entity } => {
+                    events.push(universe::UniverseEvent::RemoveBuilding { entity })
+                }
             }
         }
     }

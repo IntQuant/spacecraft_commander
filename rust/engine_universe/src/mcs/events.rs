@@ -87,6 +87,12 @@ pub(crate) fn system_handle_pending_events<'a>(
                 });
                 evctx.any_vessel_changed = true;
             }
+            UniverseEvent::RemoveBuilding { entity } => {
+                commands.submit(move |world| {
+                    world.despawn(entity); // TODO check if it's actually a building
+                });
+                evctx.any_vessel_changed = true;
+            }
         }
     }
 }

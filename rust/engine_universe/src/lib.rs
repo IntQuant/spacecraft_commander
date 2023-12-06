@@ -98,6 +98,9 @@ pub enum UniverseEvent {
         orientation: BuildingOrientation,
         kind: BuildingKind,
     },
+    RemoveBuilding {
+        entity: EntityID,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
