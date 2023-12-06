@@ -4,7 +4,7 @@ use engine_ecs::EntityID;
 use engine_num::Vec3;
 use godot::{engine::CharacterBody3D, prelude::*};
 use tracing::{info, warn};
-use universe::mcs::{self, Player, VesselTiles};
+use universe::mcs::{self, Building, Player, VesselTiles};
 
 use crate::{
     universe::{self},
@@ -29,7 +29,9 @@ pub fn vessel_upload_condition(
     changes: Changes,
 ) -> bool {
     //current_vessel.is_changed() || !evctx.tiles_changed.is_empty() // TODO
-    changes.resource_changed::<CurrentVesselRes>() || !evctx.tiles_changed.is_empty()
+    changes.resource_changed::<CurrentVesselRes>()
+        || !evctx.tiles_changed.is_empty()
+        || evctx.any_vessel_changed
 }
 
 pub fn update_current_vessel(
@@ -59,7 +61,7 @@ pub fn upload_current_vessel_tiles(
 ) {
     info!("Uploading vessel");
 
-    for mut shown in &mut scene_tree.iter_group::<Node>("tiles") {
+    for mut shown in &mut scene_tree.iter_group::<Node>("static") {
         shown.queue_free()
     }
 
@@ -80,7 +82,21 @@ pub fn upload_current_vessel_tiles(
         node.set_position(pos.to_godot());
         let basis = tile.orientation.to_basis().to_godot();
         node.set_basis(basis);
-        node.add_to_group("tiles".into());
+        node.add_to_group("static".into());
+        root_node.add_child(node.upcast());
+    }
+
+    let device = load::<PackedScene>("vessel/buildings/light00.tscn");
+    let qword = universe.world.query_world_shared();
+    let mut buildings = qword.parameter::<mcs::Query<(EntityID, &Building)>>();
+    for (entity, building) in buildings.iter() {
+        let mut node = device.instantiate().unwrap().cast::<BaseStaticBody>();
+        node.bind_mut().kind = Some(crate::BodyKind::Building { entity });
+
+        node.set_position(building.position.to_godot());
+        node.set_basis(building.orientation.to_basis().for_buildings().to_godot());
+        node.add_to_group("static".into());
+
         root_node.add_child(node.upcast());
     }
 }

@@ -58,6 +58,7 @@ pub(crate) fn system_handle_pending_events<'a>(
                 };
                 info!("Tile placed");
                 vessel.0.add_at(evctx, position, Tile { orientation });
+                evctx.any_vessel_changed = true;
             }
             UniverseEvent::RemoveTile { position, index } => {
                 let Some(player_ent) = player_map.get(player_id) else {
@@ -70,6 +71,7 @@ pub(crate) fn system_handle_pending_events<'a>(
                     continue;
                 };
                 vessel.0.remove_at(evctx, position, index);
+                evctx.any_vessel_changed = true;
             }
             UniverseEvent::PlaceBuilding {
                 position,
@@ -83,6 +85,7 @@ pub(crate) fn system_handle_pending_events<'a>(
                         kind,
                     });
                 });
+                evctx.any_vessel_changed = true;
             }
         }
     }

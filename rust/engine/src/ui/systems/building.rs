@@ -1,4 +1,4 @@
-use crate::universe;
+use crate::{ui::uecs::Changes, universe};
 use std::f32::consts::PI;
 
 use engine_universe::{
@@ -7,6 +7,7 @@ use engine_universe::{
 };
 use godot::engine::{load, Input, Node3D, PackedScene, RayCast3D};
 use tracing::info;
+use universe::mcs::BuildingKind;
 
 use crate::{
     ui::{
@@ -51,16 +52,18 @@ pub fn building_placer(
     local: &mut PlacerRes,
     current_facing: &CurrentFacingRes,
     mode: &BuildingMode,
+    changes: Changes,
 ) {
     if player_node.player.is_none() {
         return;
     };
-
-    if *mode == BuildingMode::Disabled {
+    if changes.resource_changed::<BuildingMode>() {
         if let Some(temp_node) = &mut local.temp_build_node {
             temp_node.queue_free();
             local.temp_build_node = None;
         }
+    }
+    if *mode == BuildingMode::Disabled {
         return;
     }
 
@@ -75,19 +78,47 @@ pub fn building_placer(
     let place_pos_q = place_tile.to_godot();
     if let Some(b_node) = &mut local.temp_build_node {
         b_node.set_position(place_pos_q);
-        b_node.set_basis(current_facing.to_basis().to_godot());
+        let basis = match *mode {
+            BuildingMode::Disabled => return,
+            BuildingMode::Tiles => current_facing.to_basis(),
+            BuildingMode::Buildings => current_facing.to_basis().for_buildings(),
+        };
+        b_node.set_basis(basis.to_godot());
     } else {
-        let wall_scene = load::<PackedScene>("vessel/generic/wall_virtual.tscn");
+        let wall_scene = match *mode {
+            BuildingMode::Disabled => return,
+            BuildingMode::Tiles => load::<PackedScene>("vessel/generic/wall_virtual.tscn"),
+            BuildingMode::Buildings => load::<PackedScene>("vessel/buildings/light00.tscn"),
+        };
+
         let node = wall_scene.instantiate().unwrap();
         root_node.add_child(node.clone());
         let node = node.cast::<Node3D>();
         local.temp_build_node = Some(node);
     }
     if Input::singleton().is_action_just_pressed("g_place".into()) {
-        events.push(universe::UniverseEvent::PlaceTile {
-            position: place_tile,
-            orientation: BuildingOrientation::new(current_facing.0, rotations::BuildingRotation::N),
-        })
+        match *mode {
+            BuildingMode::Disabled => return,
+            BuildingMode::Tiles => {
+                events.push(universe::UniverseEvent::PlaceTile {
+                    position: place_tile,
+                    orientation: BuildingOrientation::new(
+                        current_facing.0,
+                        rotations::BuildingRotation::N,
+                    ),
+                });
+            }
+            BuildingMode::Buildings => {
+                events.push(universe::UniverseEvent::PlaceBuilding {
+                    position: place_tile,
+                    orientation: BuildingOrientation::new(
+                        current_facing.0,
+                        rotations::BuildingRotation::N,
+                    ),
+                    kind: BuildingKind::default(),
+                });
+            }
+        }
     }
 }
 
@@ -110,8 +141,12 @@ pub fn building_remover(player_node: &mut PlayerNodeRes, events: &mut UniverseEv
             let Some(kind) = hit.bind().kind else {
                 return;
             };
-            let BodyKind::Tile { index, position } = kind;
-            events.push(universe::UniverseEvent::RemoveTile { position, index });
+            match kind {
+                BodyKind::Tile { index, position } => {
+                    events.push(universe::UniverseEvent::RemoveTile { position, index })
+                }
+                BodyKind::Building { entity } => todo!(),
+            }
         }
     }
 }

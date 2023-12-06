@@ -1,3 +1,5 @@
+use std::mem;
+
 use serde::{Deserialize, Serialize};
 
 pub struct CompactBasis(pub [i8; 3]);
@@ -64,5 +66,14 @@ impl BuildingOrientation {
     }
     pub fn to_basis(&self) -> CompactBasis {
         self.facing.to_basis()
+    }
+}
+
+impl CompactBasis {
+    pub fn for_buildings(self) -> CompactBasis {
+        let mut ret = CompactBasis(self.0);
+        let split = ret.0.split_first_mut().unwrap();
+        mem::swap(split.0, &mut split.1[0]);
+        ret
     }
 }

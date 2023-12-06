@@ -7,6 +7,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc, OnceLock},
 };
 
+use engine_ecs::EntityID;
 use godot::{
     engine::{
         Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer, StaticBody3D,
@@ -196,6 +197,7 @@ impl GameClass {
 #[derive(Debug, Clone, Copy)]
 enum BodyKind {
     Tile { index: TileIndex, position: TilePos },
+    Building { entity: EntityID },
 }
 
 #[derive(GodotClass, Debug)]
