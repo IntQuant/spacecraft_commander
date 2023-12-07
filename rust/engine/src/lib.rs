@@ -3,6 +3,7 @@ use crate::universe::{
     tilemap::{Tile, TilePos},
 };
 use std::{
+    fs::File,
     ops::DerefMut,
     sync::{atomic::AtomicBool, Arc, OnceLock},
 };
@@ -92,6 +93,8 @@ struct GameClass {
     base: Base<Node3D>,
 }
 
+const TEMP_SAVE: &'static str = "tmp.universe";
+
 #[godot_api]
 impl Node3DVirtual for GameClass {
     fn init(base: Base<Self::Base>) -> Self {
@@ -113,7 +116,12 @@ impl Node3DVirtual for GameClass {
             info!("Running in editor: skipping init");
             None
         };
-        let mut universe = Universe::new();
+        let maybe_universe = File::open(TEMP_SAVE).ok().and_then(|file| {
+            info!("Trying to deserialize universe");
+            bincode::deserialize_from(file).ok()
+        });
+
+        let mut universe = maybe_universe.unwrap_or_else(|| Universe::new());
         let mut evctx = UiEventCtx::default();
 
         let mut tile_map = universe::tilemap::TileMap::new();
@@ -215,5 +223,17 @@ impl StaticBody3DVirtual for BaseStaticBody {
             kind: None,
             _base: base,
         }
+    }
+}
+
+fn save_tmp_universe(universe: &Universe) -> Option<()> {
+    let file = File::create(TEMP_SAVE).ok()?;
+    bincode::serialize_into(file, universe).ok()?;
+    Some(())
+}
+
+impl Drop for GameClass {
+    fn drop(&mut self) {
+        save_tmp_universe(&self.universe);
     }
 }

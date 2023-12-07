@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://7re1vthy7p8w"]
+[gd_scene load_steps=7 format=3 uid="uid://7re1vthy7p8w"]
 
 [ext_resource type="Script" path="res://fpscounter.gd" id="1_8g722"]
 
@@ -13,9 +13,20 @@ sky_material = SubResource("ProceduralSkyMaterial_sgxcu")
 background_mode = 2
 background_energy_multiplier = 0.1
 sky = SubResource("Sky_bxmto")
-reflected_light_source = 1
 tonemap_mode = 2
+ssil_enabled = true
+sdfgi_enabled = true
+sdfgi_use_occlusion = true
 glow_enabled = true
+
+[sub_resource type="SphereMesh" id="SphereMesh_1hqmv"]
+radius = 1.0
+height = 2.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_imx3e"]
+albedo_color = Color(0.490196, 0.490196, 0.490196, 1)
+metallic = 1.0
+roughness = 0.0
 
 [node name="GameClass" type="GameClass"]
 
@@ -45,3 +56,8 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "fps: -1"
 script = ExtResource("1_8g722")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.78395, 0)
+mesh = SubResource("SphereMesh_1hqmv")
+surface_material_override/0 = SubResource("StandardMaterial3D_imx3e")

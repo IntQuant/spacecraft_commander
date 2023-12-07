@@ -3,6 +3,8 @@
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_uaex2"]
 transparency = 1
 albedo_color = Color(0.486275, 0.686275, 0.964706, 0.321569)
+emission_enabled = true
+emission = Color(0, 0, 0.882353, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_kmf3f"]
 material = SubResource("StandardMaterial3D_uaex2")
