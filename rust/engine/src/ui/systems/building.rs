@@ -88,7 +88,7 @@ pub fn building_placer(
         let wall_scene = match *mode {
             BuildingMode::Disabled => return,
             BuildingMode::Tiles => load::<PackedScene>("vessel/generic/wall_virtual.tscn"),
-            BuildingMode::Buildings => load::<PackedScene>("vessel/buildings/light00.tscn"),
+            BuildingMode::Buildings => load::<PackedScene>("vessel/buildings/control00.tscn"),
         };
 
         let node = wall_scene.instantiate().unwrap();
