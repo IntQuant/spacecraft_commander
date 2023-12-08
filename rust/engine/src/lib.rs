@@ -229,11 +229,14 @@ impl StaticBody3DVirtual for BaseStaticBody {
 fn save_tmp_universe(universe: &Universe) -> Option<()> {
     let file = File::create(TEMP_SAVE).ok()?;
     bincode::serialize_into(file, universe).ok()?;
+    info!("Save ok");
     Some(())
 }
 
 impl Drop for GameClass {
     fn drop(&mut self) {
-        save_tmp_universe(&self.universe);
+        if !Engine::singleton().is_editor_hint() {
+            save_tmp_universe(&self.universe);
+        }
     }
 }

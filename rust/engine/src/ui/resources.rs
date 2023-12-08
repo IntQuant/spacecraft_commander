@@ -1,5 +1,8 @@
 use derive_more::{Deref, DerefMut};
-use engine_universe::mcs::{PlayerID, VesselID};
+use engine_universe::{
+    mcs::{PlayerID, VesselID},
+    rotations::BuildingRotation,
+};
 use std::{ops, sync::Arc};
 
 use godot::{
@@ -101,6 +104,9 @@ pub struct EvCtxRes(pub UiEventCtx);
 
 #[derive(Deref, DerefMut, Default)]
 pub struct CurrentFacingRes(pub BuildingFacing);
+
+#[derive(Deref, DerefMut, Default)]
+pub struct CurrentBuildingRotationRes(pub BuildingRotation);
 
 #[derive(Deref, DerefMut, Default)]
 pub struct CurrentPlayerRotationRes(pub f32);

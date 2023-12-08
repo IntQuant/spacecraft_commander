@@ -15,12 +15,30 @@ pub enum BuildingFacing {
     Nz,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub enum BuildingRotation {
+    #[default]
     N,
-    W,
-    S,
     E,
+    S,
+    W,
+}
+impl BuildingRotation {
+    pub fn turn(self, by: i32) -> Self {
+        let index = self as i32;
+        let res_index = (index + by).rem_euclid(4);
+        Self::from_index(res_index as u8)
+    }
+
+    fn from_index(res_index: u8) -> BuildingRotation {
+        match res_index {
+            0 => Self::N,
+            1 => Self::E,
+            2 => Self::S,
+            3 => Self::W,
+            _ => panic!("Unexpected index for BuildingRotation"),
+        }
+    }
 }
 
 impl BuildingFacing {
@@ -65,7 +83,7 @@ impl BuildingOrientation {
         Self { facing, rotation }
     }
     pub fn to_basis(&self) -> CompactBasis {
-        self.facing.to_basis()
+        self.facing.to_basis().rotate_by(self.rotation)
     }
 }
 
@@ -75,5 +93,25 @@ impl CompactBasis {
         let split = ret.0.split_first_mut().unwrap();
         mem::swap(split.0, &mut split.1[0]);
         ret
+    }
+
+    pub fn rotate_by(self, current_rotation: BuildingRotation) -> CompactBasis {
+        let rot_basis = match current_rotation {
+            BuildingRotation::N => CompactBasis([1, 2, 3]),
+            BuildingRotation::W => CompactBasis([1, -3, 2]),
+            BuildingRotation::S => CompactBasis([1, -2, -3]),
+            BuildingRotation::E => CompactBasis([1, 3, -2]),
+        };
+        let mut new_basis_data = [0; 3];
+        for i in 0..3 {
+            let basis_index_raw = rot_basis.0[i];
+            let (basis_index, mul) = if basis_index_raw < 0 {
+                (-basis_index_raw - 1, -1)
+            } else {
+                (basis_index_raw - 1, 1)
+            };
+            new_basis_data[i] = self.0[basis_index as usize] * mul;
+        }
+        CompactBasis(new_basis_data)
     }
 }
