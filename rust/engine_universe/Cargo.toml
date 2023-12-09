@@ -9,6 +9,7 @@ edition = "2021"
 engine_num = {path = "../engine_num"}
 engine_macro = {path = "../engine_macro"}
 engine_ecs = {path = "../engine_ecs"}
+engine_registry = {path = "../engine_registry"}
 
 indexmap = { version = "*", features = ["serde"] }
 

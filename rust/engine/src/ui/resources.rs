@@ -109,6 +109,9 @@ pub struct CurrentFacingRes(pub BuildingFacing);
 pub struct CurrentBuildingRotationRes(pub BuildingRotation);
 
 #[derive(Deref, DerefMut, Default)]
+pub struct CurrentBuildingIndexRes(pub usize);
+
+#[derive(Deref, DerefMut, Default)]
 pub struct CurrentPlayerRotationRes(pub f32);
 
 #[derive(Default)]

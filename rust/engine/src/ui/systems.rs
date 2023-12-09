@@ -92,7 +92,7 @@ pub fn upload_current_vessel_tiles(
     for (entity, building) in buildings.iter() {
         let mut node = device.instantiate().unwrap().cast::<BaseStaticBody>();
         node.bind_mut().kind = Some(crate::BodyKind::Building { entity });
-
+        // TODO spawn correct building
         node.set_position(building.position.to_godot());
         node.set_basis(building.orientation.to_basis().for_buildings().to_godot());
         node.add_to_group("static".into());

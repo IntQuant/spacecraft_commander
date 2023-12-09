@@ -2,9 +2,10 @@ use std::{mem, time::Duration};
 
 use engine_ecs::{EntityID, World, WorldRun};
 use engine_num::Vec3;
+use engine_registry::BuildingKind;
 use mcs::{
-    events::system_handle_pending_events, BuildingKind, ComponentStorage, PendingEventsRes, Player,
-    PlayerID, PlayerMap,
+    events::system_handle_pending_events, ComponentStorage, PendingEventsRes, Player, PlayerID,
+    PlayerMap,
 };
 use rotations::BuildingOrientation;
 use serde::{Deserialize, Serialize};

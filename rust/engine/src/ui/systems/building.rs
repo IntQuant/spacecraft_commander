@@ -1,13 +1,16 @@
 use crate::{
-    ui::{resources::CurrentBuildingRotationRes, uecs::Changes},
+    ui::{
+        resources::{CurrentBuildingIndexRes, CurrentBuildingRotationRes},
+        uecs::Changes,
+    },
     universe,
 };
 use std::f32::consts::PI;
 
+use engine_registry::Registry;
 use engine_universe::{rotations::BuildingOrientation, tilemap::TilePos};
 use godot::engine::{load, Input, Node3D, PackedScene, RayCast3D};
 use tracing::info;
-use universe::mcs::BuildingKind;
 
 use crate::{
     ui::{
@@ -52,6 +55,31 @@ pub fn building_facing(
     }
 }
 
+pub fn building_selector(commands: Commands) {
+    let input = Input::singleton();
+    let building_len = Registry::instance().buildings.len();
+    if input.is_action_just_pressed("g_next_building".into()) {
+        commands.submit(move |world| {
+            info!("Next building selected");
+            let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
+            current_building.0 += 1;
+            if current_building.0 == building_len {
+                current_building.0 = 0;
+            }
+        })
+    }
+    if input.is_action_just_pressed("g_prev_building".into()) {
+        commands.submit(move |world| {
+            info!("Prev building selected");
+            let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
+            if current_building.0 == 0 {
+                current_building.0 = building_len;
+            }
+            current_building.0 -= 1;
+        })
+    }
+}
+
 pub fn building_placer(
     player_node: &mut PlayerNodeRes,
     events: &mut UniverseEventStorageRes,
@@ -59,6 +87,7 @@ pub fn building_placer(
     local: &mut PlacerRes,
     current_facing: &CurrentFacingRes,
     current_rotation: &CurrentBuildingRotationRes,
+    current_building: &CurrentBuildingIndexRes,
     mode: &BuildingMode,
     changes: Changes,
 ) {
@@ -105,6 +134,8 @@ pub fn building_placer(
         let node = node.cast::<Node3D>();
         local.temp_build_node = Some(node);
     }
+    let registry = Registry::instance();
+
     if Input::singleton().is_action_just_pressed("g_place".into()) {
         match *mode {
             BuildingMode::Disabled => return,
@@ -118,7 +149,7 @@ pub fn building_placer(
                 events.push(universe::UniverseEvent::PlaceBuilding {
                     position: place_tile,
                     orientation: BuildingOrientation::new(current_facing.0, current_rotation.0),
-                    kind: BuildingKind::default(),
+                    kind: registry.buildings[current_building.0].kind,
                 });
             }
         }

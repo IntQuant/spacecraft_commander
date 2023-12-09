@@ -1,9 +1,7 @@
+use engine_registry::BuildingKind;
 use serde::{Deserialize, Serialize};
 
 use crate::{rotations::BuildingOrientation, tilemap::TilePos};
-
-#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy)]
-pub struct BuildingKind(u32);
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Building {

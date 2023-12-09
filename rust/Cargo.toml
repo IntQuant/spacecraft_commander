@@ -2,5 +2,5 @@
 resolver = "2"
 
 members = [
-    "engine", "engine_num", "engine_universe", "engine_macro", "engine_ecs", "engine_ecs_tests"
+    "engine", "engine_num", "engine_universe", "engine_macro", "engine_ecs", "engine_ecs_tests", "engine_registry"
 ]
