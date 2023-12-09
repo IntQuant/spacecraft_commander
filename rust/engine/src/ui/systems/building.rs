@@ -4,6 +4,7 @@ use crate::{
         uecs::Changes,
     },
     universe,
+    util::RegistryExt,
 };
 use std::f32::consts::PI;
 
@@ -60,7 +61,6 @@ pub fn building_selector(commands: Commands) {
     let building_len = Registry::instance().buildings.len();
     if input.is_action_just_pressed("g_next_building".into()) {
         commands.submit(move |world| {
-            info!("Next building selected");
             let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
             current_building.0 += 1;
             if current_building.0 == building_len {
@@ -70,7 +70,6 @@ pub fn building_selector(commands: Commands) {
     }
     if input.is_action_just_pressed("g_prev_building".into()) {
         commands.submit(move |world| {
-            info!("Prev building selected");
             let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
             if current_building.0 == 0 {
                 current_building.0 = building_len;
@@ -94,7 +93,9 @@ pub fn building_placer(
     if player_node.player.is_none() {
         return;
     };
-    if changes.resource_changed::<BuildingMode>() {
+    if changes.resource_changed::<BuildingMode>()
+        || changes.resource_changed::<CurrentBuildingIndexRes>()
+    {
         if let Some(temp_node) = &mut local.temp_build_node {
             temp_node.queue_free();
             local.temp_build_node = None;
@@ -113,6 +114,21 @@ pub fn building_placer(
     let place_pos = pos + dir * 3.0;
     let place_tile = TilePos::from_godot(place_pos);
     let place_pos_q = place_tile.to_godot();
+    let registry = Registry::instance();
+
+    if local.temp_build_node.is_none() {
+        let scene = match *mode {
+            BuildingMode::Disabled => return,
+            BuildingMode::Tiles => load::<PackedScene>("vessel/generic/wall_virtual.tscn"),
+            BuildingMode::Buildings => registry.scene_by_building_index(current_building.0),
+        };
+
+        let node = scene.instantiate().unwrap();
+        root_node.add_child(node.clone());
+        let node = node.cast::<Node3D>();
+        local.temp_build_node = Some(node);
+    }
+
     if let Some(b_node) = &mut local.temp_build_node {
         b_node.set_position(place_pos_q);
         let rotated_basis = current_facing.to_basis().rotate_by(current_rotation.0);
@@ -122,19 +138,7 @@ pub fn building_placer(
             BuildingMode::Buildings => rotated_basis.for_buildings(),
         };
         b_node.set_basis(final_basis.to_godot());
-    } else {
-        let wall_scene = match *mode {
-            BuildingMode::Disabled => return,
-            BuildingMode::Tiles => load::<PackedScene>("vessel/generic/wall_virtual.tscn"),
-            BuildingMode::Buildings => load::<PackedScene>("vessel/buildings/light00.tscn"),
-        };
-
-        let node = wall_scene.instantiate().unwrap();
-        root_node.add_child(node.clone());
-        let node = node.cast::<Node3D>();
-        local.temp_build_node = Some(node);
     }
-    let registry = Registry::instance();
 
     if Input::singleton().is_action_just_pressed("g_place".into()) {
         match *mode {

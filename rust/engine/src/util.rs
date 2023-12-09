@@ -2,8 +2,10 @@ use std::iter::Map;
 
 use engine_ecs::EntityID;
 use engine_num::Vec3;
+use engine_registry::{BuildingKind, Registry};
 use godot::{
     builtin::Variant,
+    engine::{load, PackedScene},
     prelude::{
         meta::VariantMetadata, Array, Basis, FromVariant, Gd, GodotClass, Inherits, Node,
         SceneTree, StringName, Vector3,
@@ -162,5 +164,24 @@ impl OptionNetmanExt for Option<NetmanVariant> {
 
     fn get_mut(&mut self) -> &mut NetmanVariant {
         self.as_mut().unwrap()
+    }
+}
+
+pub trait RegistryExt {
+    fn scene_by_building_kind(&self, kind: BuildingKind) -> Gd<PackedScene>;
+    fn scene_by_building_index(&self, index: usize) -> Gd<PackedScene>;
+}
+
+impl RegistryExt for Registry {
+    fn scene_by_building_kind(&self, kind: BuildingKind) -> Gd<PackedScene> {
+        let device_name = self
+            .building_by_kind(kind)
+            .map(|x| x.name)
+            .unwrap_or("dummy");
+        load::<PackedScene>(format!("vessel/buildings/{device_name}.tscn"))
+    }
+    fn scene_by_building_index(&self, index: usize) -> Gd<PackedScene> {
+        let device_name = self.buildings.get(index).map(|x| x.name).unwrap_or("dummy");
+        load::<PackedScene>(format!("vessel/buildings/{device_name}.tscn"))
     }
 }

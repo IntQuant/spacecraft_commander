@@ -2,13 +2,14 @@ use std::{collections::HashSet, f32::consts::PI};
 
 use engine_ecs::EntityID;
 use engine_num::Vec3;
+use engine_registry::Registry;
 use godot::{engine::CharacterBody3D, prelude::*};
 use tracing::{info, warn};
 use universe::mcs::{self, Building, Player, VesselTiles};
 
 use crate::{
     universe::{self},
-    util::{FromGodot, SceneTreeExt, ToGodot},
+    util::{FromGodot, RegistryExt, SceneTreeExt, ToGodot},
     BaseStaticBody,
 };
 
@@ -86,13 +87,13 @@ pub fn upload_current_vessel_tiles(
         root_node.add_child(node.upcast());
     }
 
-    let device = load::<PackedScene>("vessel/buildings/light00.tscn");
     let qword = universe.world.query_world_shared();
     let mut buildings = qword.parameter::<mcs::Query<(EntityID, &Building)>>();
+    let registry = &Registry::instance();
     for (entity, building) in buildings.iter() {
+        let device = registry.scene_by_building_kind(building.kind);
         let mut node = device.instantiate().unwrap().cast::<BaseStaticBody>();
         node.bind_mut().kind = Some(crate::BodyKind::Building { entity });
-        // TODO spawn correct building
         node.set_position(building.position.to_godot());
         node.set_basis(building.orientation.to_basis().for_buildings().to_godot());
         node.add_to_group("static".into());

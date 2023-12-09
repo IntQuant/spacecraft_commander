@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct BuildingKind(u32);
 
 pub struct BuildingEntry {
@@ -33,5 +33,9 @@ impl Registry {
     pub fn instance() -> &'static Self {
         static REGISTRY: OnceLock<Registry> = OnceLock::new();
         REGISTRY.get_or_init(|| Self::new())
+    }
+
+    pub fn building_by_kind(&self, kind: BuildingKind) -> Option<&BuildingEntry> {
+        self.buildings.iter().find(|x| x.kind == kind)
     }
 }
