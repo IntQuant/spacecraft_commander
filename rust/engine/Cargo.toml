@@ -33,4 +33,5 @@ thiserror = "*"
 smallvec = {version = "1.11.1", features = ["serde"]}
 anyhow = "1.0.75"
 derive_more = "0.99.17"
+ron = "0.8.1"
 

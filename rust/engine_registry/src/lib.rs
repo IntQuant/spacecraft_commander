@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct BuildingKind(u32);
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TileKind(u32);
+
 pub struct BuildingEntry {
     pub kind: BuildingKind,
     pub name: &'static str,

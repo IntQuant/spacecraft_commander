@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use engine_registry::TileKind;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -12,6 +13,8 @@ pub type DefVec<T> = SmallVec<[T; 4]>;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tile {
     pub orientation: BuildingOrientation,
+    #[serde(default)]
+    pub kind: TileKind,
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Serialize, Deserialize, Clone, Copy)]

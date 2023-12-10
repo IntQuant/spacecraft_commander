@@ -3,12 +3,13 @@ use crate::universe::{
     tilemap::{Tile, TilePos},
 };
 use std::{
-    fs::File,
+    fs::{self, File},
     ops::DerefMut,
     sync::{atomic::AtomicBool, Arc, OnceLock},
 };
 
 use engine_ecs::EntityID;
+use engine_registry::TileKind;
 use godot::{
     engine::{
         Engine, InputEvent, InputEventMouseMotion, Os, RenderingServer, StaticBody3D,
@@ -17,6 +18,7 @@ use godot::{
     prelude::*,
 };
 use netman::NetmanVariant;
+use ron::ser::PrettyConfig;
 use tokio::runtime::{EnterGuard, Runtime};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -94,6 +96,7 @@ struct GameClass {
 }
 
 const TEMP_SAVE: &'static str = "tmp.universe";
+const TEMP_SAVE_2: &'static str = "tmp2.universe";
 
 #[godot_api]
 impl Node3DVirtual for GameClass {
@@ -116,10 +119,13 @@ impl Node3DVirtual for GameClass {
             info!("Running in editor: skipping init");
             None
         };
-        let maybe_universe = File::open(TEMP_SAVE).ok().and_then(|file| {
-            info!("Trying to deserialize universe");
-            bincode::deserialize_from(file).ok()
-        });
+        // let maybe_universe = File::open(TEMP_SAVE).ok().and_then(|file| {
+        //     info!("Trying to deserialize universe");
+        //     Some(bincode::deserialize_from(file).expect("can deserialize"))
+        // });
+        let maybe_universe = fs::read_to_string(TEMP_SAVE_2)
+            .map(|x| ron::from_str(&x).expect("can deserialize"))
+            .ok();
 
         let mut universe = maybe_universe.unwrap_or_else(|| Universe::new());
         let mut evctx = UiEventCtx::default();
@@ -133,6 +139,7 @@ impl Node3DVirtual for GameClass {
                     rotations::BuildingFacing::Ny,
                     rotations::BuildingRotation::N,
                 ),
+                kind: TileKind::default(),
             },
         );
 
@@ -229,7 +236,16 @@ impl StaticBody3DVirtual for BaseStaticBody {
 fn save_tmp_universe(universe: &Universe) -> Option<()> {
     let file = File::create(TEMP_SAVE).ok()?;
     bincode::serialize_into(file, universe).ok()?;
-    info!("Save ok");
+    info!("Bincode save ok");
+    let universe_str = ron::ser::to_string_pretty(
+        universe,
+        PrettyConfig::default()
+            .indentor(" ".to_string())
+            .depth_limit(3),
+    )
+    .ok()?;
+    fs::write(TEMP_SAVE_2, &universe_str).ok()?;
+    info!("Ron save ok");
     Some(())
 }
 

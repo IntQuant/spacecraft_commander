@@ -61,3 +61,8 @@ script = ExtResource("1_8g722")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.78395, 0)
 mesh = SubResource("SphereMesh_1hqmv")
 surface_material_override/0 = SubResource("StandardMaterial3D_imx3e")
+
+[node name="SpotLight3D" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -0.892955, 0.450145, 0, -0.450145, -0.892955, 0, 2.97944, 0)
+visible = false
+spot_range = 9.13556

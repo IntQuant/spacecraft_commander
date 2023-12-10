@@ -1,4 +1,5 @@
 use engine_num::Vec3;
+use engine_registry::TileKind;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -57,7 +58,14 @@ pub(crate) fn system_handle_pending_events<'a>(
                     continue;
                 };
                 info!("Tile placed");
-                vessel.0.add_at(evctx, position, Tile { orientation });
+                vessel.0.add_at(
+                    evctx,
+                    position,
+                    Tile {
+                        orientation,
+                        kind: TileKind::default(),
+                    },
+                );
                 evctx.any_vessel_changed = true;
             }
             UniverseEvent::RemoveTile { position, index } => {

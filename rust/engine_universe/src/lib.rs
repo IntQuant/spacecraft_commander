@@ -17,6 +17,7 @@ use self::{
 
 pub const TICK_TIME: Duration = Duration::from_micros(16666);
 
+pub mod persistance;
 pub mod rotations;
 pub mod tilemap;
 pub mod ui_events;
