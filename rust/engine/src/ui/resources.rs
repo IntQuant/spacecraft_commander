@@ -112,6 +112,9 @@ pub struct CurrentBuildingRotationRes(pub BuildingRotation);
 pub struct CurrentBuildingIndexRes(pub usize);
 
 #[derive(Deref, DerefMut, Default)]
+pub struct CurrentTileIndexRes(pub usize);
+
+#[derive(Deref, DerefMut, Default)]
 pub struct CurrentPlayerRotationRes(pub f32);
 
 #[derive(Default)]

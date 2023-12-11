@@ -5,8 +5,8 @@
 [ ] switches
 [ ] virtual building marker
 [ ] add dummy building
-[ ] selecting tiles
-    [ ] glass tiles
+[+] selecting tiles
+    [+] glass tiles
 [ ] doors
 [ ] flight
 [ ] resources

@@ -71,8 +71,9 @@ pub fn upload_current_vessel_tiles(
         return;
     };
 
-    let wall_scene = load::<PackedScene>("vessel/generic/wall_generic.tscn");
+    let registry = &Registry::instance();
     for (tile_index, pos, tile) in tiles.0.iter() {
+        let wall_scene = registry.scene_by_tile_kind(tile.kind);
         let mut node = wall_scene.instantiate().unwrap().cast::<BaseStaticBody>();
 
         node.bind_mut().kind = Some(crate::BodyKind::Tile {
@@ -89,7 +90,6 @@ pub fn upload_current_vessel_tiles(
 
     let qword = universe.world.query_world_shared();
     let mut buildings = qword.parameter::<mcs::Query<(EntityID, &Building)>>();
-    let registry = &Registry::instance();
     for (entity, building) in buildings.iter() {
         let device = registry.scene_by_building_kind(building.kind);
         let mut node = device.instantiate().unwrap().cast::<BaseStaticBody>();

@@ -2,7 +2,7 @@ use std::{mem, time::Duration};
 
 use engine_ecs::{EntityID, World, WorldRun};
 use engine_num::Vec3;
-use engine_registry::BuildingKind;
+use engine_registry::{BuildingKind, TileKind};
 use mcs::{
     events::system_handle_pending_events, ComponentStorage, PendingEventsRes, Player, PlayerID,
     PlayerMap,
@@ -90,6 +90,7 @@ pub enum UniverseEvent {
     PlaceTile {
         position: TilePos,
         orientation: BuildingOrientation,
+        kind: TileKind,
     },
     RemoveTile {
         position: TilePos,

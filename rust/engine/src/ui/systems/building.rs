@@ -1,6 +1,6 @@
 use crate::{
     ui::{
-        resources::{CurrentBuildingIndexRes, CurrentBuildingRotationRes},
+        resources::{CurrentBuildingIndexRes, CurrentBuildingRotationRes, CurrentTileIndexRes},
         uecs::Changes,
     },
     universe,
@@ -56,26 +56,52 @@ pub fn building_facing(
     }
 }
 
-pub fn building_selector(commands: Commands) {
+pub fn building_selector(commands: Commands, mode: &BuildingMode) {
     let input = Input::singleton();
     let building_len = Registry::instance().buildings.len();
-    if input.is_action_just_pressed("g_next_building".into()) {
-        commands.submit(move |world| {
-            let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
-            current_building.0 += 1;
-            if current_building.0 == building_len {
-                current_building.0 = 0;
+    let tiles_len = Registry::instance().tiles.len();
+    match mode {
+        BuildingMode::Disabled => {}
+        BuildingMode::Tiles => {
+            if input.is_action_just_pressed("g_next_building".into()) {
+                commands.submit(move |world| {
+                    let current_tile: &mut CurrentTileIndexRes = world.resource_mut();
+                    current_tile.0 += 1;
+                    if current_tile.0 == tiles_len {
+                        current_tile.0 = 0;
+                    }
+                })
             }
-        })
-    }
-    if input.is_action_just_pressed("g_prev_building".into()) {
-        commands.submit(move |world| {
-            let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
-            if current_building.0 == 0 {
-                current_building.0 = building_len;
+            if input.is_action_just_pressed("g_prev_building".into()) {
+                commands.submit(move |world| {
+                    let current_tile: &mut CurrentTileIndexRes = world.resource_mut();
+                    if current_tile.0 == 0 {
+                        current_tile.0 = tiles_len;
+                    }
+                    current_tile.0 -= 1;
+                })
             }
-            current_building.0 -= 1;
-        })
+        }
+        BuildingMode::Buildings => {
+            if input.is_action_just_pressed("g_next_building".into()) {
+                commands.submit(move |world| {
+                    let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
+                    current_building.0 += 1;
+                    if current_building.0 == building_len {
+                        current_building.0 = 0;
+                    }
+                })
+            }
+            if input.is_action_just_pressed("g_prev_building".into()) {
+                commands.submit(move |world| {
+                    let current_building: &mut CurrentBuildingIndexRes = world.resource_mut();
+                    if current_building.0 == 0 {
+                        current_building.0 = building_len;
+                    }
+                    current_building.0 -= 1;
+                })
+            }
+        }
     }
 }
 
@@ -87,6 +113,7 @@ pub fn building_placer(
     current_facing: &CurrentFacingRes,
     current_rotation: &CurrentBuildingRotationRes,
     current_building: &CurrentBuildingIndexRes,
+    current_tile: &CurrentTileIndexRes,
     mode: &BuildingMode,
     changes: Changes,
 ) {
@@ -147,6 +174,7 @@ pub fn building_placer(
                 events.push(universe::UniverseEvent::PlaceTile {
                     position: place_tile,
                     orientation: BuildingOrientation::new(current_facing.0, current_rotation.0),
+                    kind: registry.tiles[current_tile.0].kind,
                 });
             }
             BuildingMode::Buildings => {

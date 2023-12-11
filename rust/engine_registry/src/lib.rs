@@ -13,8 +13,14 @@ pub struct BuildingEntry {
     pub name: &'static str,
 }
 
+pub struct TileEntry {
+    pub kind: TileKind,
+    pub name: &'static str,
+}
+
 pub struct Registry {
     pub buildings: Vec<BuildingEntry>,
+    pub tiles: Vec<TileEntry>,
 }
 
 impl Registry {
@@ -30,6 +36,16 @@ impl Registry {
                     name: "control00",
                 },
             ],
+            tiles: vec![
+                TileEntry {
+                    kind: TileKind(0),
+                    name: "wall_normal",
+                },
+                TileEntry {
+                    kind: TileKind(1),
+                    name: "wall_glass",
+                },
+            ],
         }
     }
 
@@ -40,5 +56,9 @@ impl Registry {
 
     pub fn building_by_kind(&self, kind: BuildingKind) -> Option<&BuildingEntry> {
         self.buildings.iter().find(|x| x.kind == kind)
+    }
+
+    pub fn tile_by_kind(&self, kind: TileKind) -> Option<&TileEntry> {
+        self.tiles.iter().find(|x| x.kind == kind)
     }
 }

@@ -2,7 +2,7 @@ use std::iter::Map;
 
 use engine_ecs::EntityID;
 use engine_num::Vec3;
-use engine_registry::{BuildingKind, Registry};
+use engine_registry::{BuildingKind, Registry, TileKind};
 use godot::{
     builtin::Variant,
     engine::{load, PackedScene},
@@ -170,6 +170,8 @@ impl OptionNetmanExt for Option<NetmanVariant> {
 pub trait RegistryExt {
     fn scene_by_building_kind(&self, kind: BuildingKind) -> Gd<PackedScene>;
     fn scene_by_building_index(&self, index: usize) -> Gd<PackedScene>;
+    fn scene_by_tile_kind(&self, kind: TileKind) -> Gd<PackedScene>;
+    fn scene_by_tile_index(&self, index: usize) -> Gd<PackedScene>;
 }
 
 impl RegistryExt for Registry {
@@ -183,5 +185,15 @@ impl RegistryExt for Registry {
     fn scene_by_building_index(&self, index: usize) -> Gd<PackedScene> {
         let device_name = self.buildings.get(index).map(|x| x.name).unwrap_or("dummy");
         load::<PackedScene>(format!("vessel/buildings/{device_name}.tscn"))
+    }
+
+    fn scene_by_tile_kind(&self, kind: TileKind) -> Gd<PackedScene> {
+        let tile_name = self.tile_by_kind(kind).map(|x| x.name).unwrap_or("dummy");
+        load::<PackedScene>(format!("vessel/tiles/{tile_name}.tscn"))
+    }
+
+    fn scene_by_tile_index(&self, index: usize) -> Gd<PackedScene> {
+        let tile_name = self.tiles.get(index).map(|x| x.name).unwrap_or("dummy");
+        load::<PackedScene>(format!("vessel/tiles/{tile_name}.tscn"))
     }
 }
