@@ -11,7 +11,6 @@ sky_material = SubResource("ProceduralSkyMaterial_sgxcu")
 
 [sub_resource type="Environment" id="Environment_6q4yy"]
 background_mode = 2
-background_energy_multiplier = 0.1
 sky = SubResource("Sky_bxmto")
 tonemap_mode = 2
 ssil_enabled = true
