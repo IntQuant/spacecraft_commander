@@ -2,7 +2,9 @@
 [+] selecting building
 [+] better save system
 [ ] even better save system
-[ ] switches
+[ ] controls
+    [+] lever basic model
+    [ ] switches
 [ ] virtual building marker
 [ ] add dummy building
 [+] selecting tiles
