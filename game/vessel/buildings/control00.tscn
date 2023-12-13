@@ -1,13 +1,19 @@
-[gd_scene load_steps=4 format=3 uid="uid://0dt5ylckxc4"]
+[gd_scene load_steps=7 format=3 uid="uid://0dt5ylckxc4"]
+
+[ext_resource type="PackedScene" uid="uid://7rxei6ty7em0" path="res://vessel/controls/lever_analog.tscn" id="1_ovv4g"]
+[ext_resource type="PackedScene" uid="uid://0e7qc035sqx2" path="res://vessel/controls/lever_2axis.tscn" id="2_v1q8h"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_bmdde"]
+size = Vector3(1, 1.4, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_2e2e3"]
 size = Vector3(1, 1.4, 0.3)
 
 [sub_resource type="BoxMesh" id="BoxMesh_gsnje"]
 size = Vector3(2, 2, 2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_smou8"]
-size = Vector3(1, 1.4, 0.4)
+size = Vector3(1, 1.4, 0.296558)
 
 [node name="Control" type="BaseStaticBody"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
@@ -17,10 +23,24 @@ collision_layer = 3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, 0)
 mesh = SubResource("BoxMesh_bmdde")
 
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 0.761697, -0.647934, 0, 0.647934, 0.761697, 0, 0.578323, -0.0714296)
+mesh = SubResource("BoxMesh_2e2e3")
+
+[node name="LeverAnalog" parent="MeshInstance3D/MeshInstance3D" instance=ExtResource("1_ovv4g")]
+transform = Transform3D(1, 0, 0, 0, 1, -2.98023e-08, 0, 2.98023e-08, 1, -0.258295, 0.0656252, -0.174194)
+
+[node name="Lever2Axis" parent="MeshInstance3D/MeshInstance3D" instance=ExtResource("2_v1q8h")]
+transform = Transform3D(1, 0, 0, 0, 1, -2.98023e-08, 0, 2.98023e-08, 1, 0.182452, 0.0656252, -0.174194)
+
 [node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
 visible = false
 mesh = SubResource("BoxMesh_gsnje")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, 1.49012e-08)
+shape = SubResource("BoxShape3D_smou8")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.766044, -0.642788, 0, 0.642788, 0.766044, 0, 0.281855, -0.0775624)
 shape = SubResource("BoxShape3D_smou8")
