@@ -5,13 +5,19 @@
 [ ] controls
     [+] lever basic model
     [ ] switches
+    [ ] displays
 [ ] virtual building marker
 [ ] add dummy building
 [+] selecting tiles
     [+] glass tiles
 [ ] doors
 [ ] flight
+    [ ] displaying space
 [ ] resources
     [ ] collection
     [ ] usage
 [ ] building and tile collisions
+[ ] ecs
+    [ ] spawn detection
+    [ ] despawn detection
+
