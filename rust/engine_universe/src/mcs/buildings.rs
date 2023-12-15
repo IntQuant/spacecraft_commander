@@ -9,3 +9,13 @@ pub struct Building {
     pub orientation: BuildingOrientation,
     pub kind: BuildingKind,
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ControlSet {
+    controls: Vec<ControlKind>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum ControlKind {
+    SingleAxisAnalog(u8),
+}
