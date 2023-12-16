@@ -169,7 +169,12 @@ pub fn player_controls(
         velocity.y -= 9.8 * dt.0;
     }
     if player_node.is_on_floor() && Input::singleton().is_action_just_pressed("g_jump".into()) {
-        velocity.y = 4.5;
+        let v = if Input::singleton().is_action_pressed("g_superjump".into()) {
+            12.0
+        } else {
+            4.5
+        };
+        velocity.y = v;
     }
 
     if position.y < -100.0 {
