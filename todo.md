@@ -2,6 +2,7 @@
 [+] selecting building
 [+] better save system
 [ ] even better save system
+    [ ] intermediate action command (save commands -> actions, network events -> actions)
 [ ] controls
     [+] lever basic model
     [ ] switches
