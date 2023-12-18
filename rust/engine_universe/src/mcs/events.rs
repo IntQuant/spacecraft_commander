@@ -2,7 +2,10 @@ use engine_num::Vec3;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::{mcs::Player, tilemap::Tile, ui_events::UiEventCtx, OwnedUniverseEvent, UniverseEvent};
+use crate::{
+    actions::Action, mcs::Player, tilemap::Tile, ui_events::UiEventCtx, OwnedUniverseEvent,
+    UniverseEvent,
+};
 
 use super::{Building, Commands, DefaultVesselRes, PlayerMap, Query, VesselTiles};
 
@@ -18,6 +21,7 @@ pub(crate) fn system_handle_pending_events<'a>(
     mut vessels: Query<'a, &'a mut VesselTiles>,
     commands: Commands,
 ) {
+    let mut actions = Vec::new();
     for event in &mut pending_events.0 {
         let player_id = event.player_id;
         match event.event {
@@ -42,6 +46,10 @@ pub(crate) fn system_handle_pending_events<'a>(
                 if let Some(player) = players.get(player_ent) {
                     player.position = new_position;
                 }
+                actions.push(Action::MovePlayer {
+                    player: player_ent,
+                    new_position: new_position,
+                });
             }
             UniverseEvent::PlaceTile {
                 position,
@@ -60,6 +68,12 @@ pub(crate) fn system_handle_pending_events<'a>(
                 info!("Tile placed");
                 vessel.0.add_at(evctx, position, Tile { orientation, kind });
                 evctx.any_vessel_changed = true;
+                actions.push(Action::PlaceTile {
+                    vessel: player.vessel,
+                    position,
+                    orientation,
+                    kind,
+                })
             }
             UniverseEvent::RemoveTile { position, index } => {
                 let Some(player_ent) = player_map.get(player_id) else {
@@ -73,12 +87,23 @@ pub(crate) fn system_handle_pending_events<'a>(
                 };
                 vessel.0.remove_at(evctx, position, index);
                 evctx.any_vessel_changed = true;
+                actions.push(Action::RemoveTile {
+                    vessel: player.vessel,
+                    position,
+                    index,
+                })
             }
             UniverseEvent::PlaceBuilding {
                 position,
                 orientation,
                 kind,
             } => {
+                let Some(player_ent) = player_map.get(player_id) else {
+                    continue;
+                };
+                let Some(player) = players.get(player_ent) else {
+                    continue;
+                };
                 commands.submit(move |world| {
                     world.spawn(Building {
                         position,
@@ -87,12 +112,28 @@ pub(crate) fn system_handle_pending_events<'a>(
                     });
                 });
                 evctx.any_vessel_changed = true;
+                actions.push(Action::PlaceBuilding {
+                    vessel: player.vessel,
+                    position,
+                    orientation,
+                    kind,
+                })
             }
             UniverseEvent::RemoveBuilding { entity } => {
+                let Some(player_ent) = player_map.get(player_id) else {
+                    continue;
+                };
+                let Some(player) = players.get(player_ent) else {
+                    continue;
+                };
                 commands.submit(move |world| {
                     world.despawn(entity); // TODO check if it's actually a building
                 });
                 evctx.any_vessel_changed = true;
+                actions.push(Action::RemoveBuilding {
+                    vessel: player.vessel,
+                    entity,
+                })
             }
         }
     }
