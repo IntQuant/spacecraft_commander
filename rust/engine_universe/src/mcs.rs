@@ -15,5 +15,5 @@ gen_storage_for_world!(
     : components
         VesselTiles Player Building
     : resources
-        DefaultVesselRes PendingEventsRes PlayerMap UiEventCtx
+        DefaultVesselRes PendingEventsRes PlayerMap UiEventCtx PendingActionsRes
 );

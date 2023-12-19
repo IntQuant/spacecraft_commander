@@ -4,8 +4,8 @@ use engine_ecs::{EntityID, World, WorldRun};
 use engine_num::Vec3;
 use engine_registry::{BuildingKind, TileKind};
 use mcs::{
-    events::system_handle_pending_events, ComponentStorage, PendingEventsRes, Player, PlayerID,
-    PlayerMap,
+    events::system_handle_pending_events, system_handle_actions, ComponentStorage,
+    PendingEventsRes, Player, PlayerID, PlayerMap,
 };
 use rotations::BuildingOrientation;
 use serde::{Deserialize, Serialize};
@@ -74,7 +74,11 @@ impl UpdateCtx<'_> {
 
     pub fn step(&mut self) {
         let world = &mut self.universe.world;
-        world.query_world().run(system_handle_pending_events);
+        {
+            let query_world = &world.query_world();
+            query_world.run(system_handle_pending_events);
+            query_world.run(system_handle_actions);
+        }
         world.resource_mut::<PendingEventsRes>().0.clear();
         //system_handle_pending_events(universe, evctx);
 

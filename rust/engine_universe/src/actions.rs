@@ -1,6 +1,7 @@
 use engine_ecs::EntityID;
 use engine_num::Vec3;
 use engine_registry::{BuildingKind, TileKind};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     mcs::VesselID,
@@ -8,6 +9,7 @@ use crate::{
     tilemap::{TileIndex, TilePos},
 };
 
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Action {
     MovePlayer {
         player: EntityID,
@@ -31,7 +33,6 @@ pub enum Action {
         kind: BuildingKind,
     },
     RemoveBuilding {
-        vessel: VesselID,
         entity: EntityID,
     },
 }

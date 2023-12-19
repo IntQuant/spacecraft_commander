@@ -3,11 +3,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{rotations::BuildingOrientation, tilemap::TilePos};
 
+use super::VesselID;
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Building {
     pub position: TilePos,
     pub orientation: BuildingOrientation,
     pub kind: BuildingKind,
+    #[serde(default)]
+    pub vessel: VesselID,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

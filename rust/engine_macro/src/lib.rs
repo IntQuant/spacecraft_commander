@@ -91,6 +91,14 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
     } else {
         quote!()
     };
+    let serialize_hints = if serialize_en {
+        quote!(
+            #[serde(default)]
+        )
+    } else {
+        quote!()
+    };
+
     let clone_derives = if clone_en {
         quote!(
             #[derive(Clone)]
@@ -105,7 +113,10 @@ pub fn gen_storage_for_world(input: TokenStream) -> TokenStream {
         #serialize_derives
         pub struct ComponentStorage {
             #( #component_storages ,)*
-            #(#resource_storage_names: ::engine_ecs::internal::ResourceStorage<#resource_types>,)*
+            #(
+                #serialize_hints
+                #resource_storage_names: ::engine_ecs::internal::ResourceStorage<#resource_types>,
+            )*
         }
         #(
             impl ::engine_ecs::LocalTypeIndex<ComponentStorage> for #component_types {
