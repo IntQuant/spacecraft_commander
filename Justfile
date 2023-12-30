@@ -15,3 +15,7 @@ editor: build
 
 doc:
     cd rust && cargo doc --no-deps --document-private-items --open
+
+export:
+    cd rust && cargo build --release --target x86_64-pc-windows-gnu
+    cd game && godot4 --export-release "Windows Desktop"
