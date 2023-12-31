@@ -1,9 +1,6 @@
-use crate::{
-    ui::uecs,
-    universe::{
-        rotations,
-        tilemap::{Tile, TilePos},
-    },
+use crate::universe::{
+    rotations,
+    tilemap::{Tile, TilePos},
 };
 use std::{
     fs::{self, File},
@@ -11,7 +8,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc, OnceLock},
 };
 
-use engine_ecs::{EntityID, WorldRun};
+use engine_ecs::EntityID;
 use engine_registry::TileKind;
 use godot::{
     engine::{
@@ -27,7 +24,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputStateRes, Ui};
 use universe::{
-    mcs::{self, DefaultVesselRes, VesselID, VesselTiles, With},
+    mcs::{DefaultVesselRes, VesselID, VesselTiles},
     rotations::BuildingOrientation,
     tilemap::TileIndex,
     ui_events::UiEventCtx,
@@ -131,7 +128,7 @@ impl Node3DVirtual for GameClass {
             .map(|x| ron::from_str(&x).expect("can deserialize"))
             .ok();
 
-        let mut universe = maybe_universe.unwrap_or_else(|| {
+        let universe = maybe_universe.unwrap_or_else(|| {
             let mut universe = Universe::new();
             let mut evctx = UiEventCtx::default();
             let mut tile_map = universe::tilemap::TileMap::new();

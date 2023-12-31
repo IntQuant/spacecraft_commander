@@ -19,3 +19,5 @@ doc:
 export:
     cd rust && cargo build --release --target x86_64-pc-windows-gnu
     cd game && godot4 --export-release "Windows Desktop"
+    cd rust && cargo build --release
+    cd game && godot4 --export-release "Linux/X11"
