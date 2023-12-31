@@ -1,6 +1,9 @@
-use crate::universe::{
-    rotations,
-    tilemap::{Tile, TilePos},
+use crate::{
+    ui::uecs,
+    universe::{
+        rotations,
+        tilemap::{Tile, TilePos},
+    },
 };
 use std::{
     fs::{self, File},
@@ -8,7 +11,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc, OnceLock},
 };
 
-use engine_ecs::EntityID;
+use engine_ecs::{EntityID, WorldRun};
 use engine_registry::TileKind;
 use godot::{
     engine::{
@@ -24,7 +27,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use ui::{resources::InputStateRes, Ui};
 use universe::{
-    mcs::{DefaultVesselRes, VesselID, VesselTiles},
+    mcs::{self, DefaultVesselRes, VesselID, VesselTiles, With},
     rotations::BuildingOrientation,
     tilemap::TileIndex,
     ui_events::UiEventCtx,
@@ -108,11 +111,12 @@ impl Node3DVirtual for GameClass {
             let arg1 = if !args.is_empty() {
                 String::from(args.get(0))
             } else {
-                "".to_string()
+                "client".to_string()
             };
             let netman = match arg1.as_str() {
                 "client" => NetmanVariant::connect("10.8.0.2:2300").unwrap(),
-                _ => NetmanVariant::start_server().unwrap(),
+                "server" => NetmanVariant::start_server().unwrap(),
+                _ => panic!("Unknown `mode` argument"),
             };
             Some(netman)
         } else {
@@ -127,24 +131,43 @@ impl Node3DVirtual for GameClass {
             .map(|x| ron::from_str(&x).expect("can deserialize"))
             .ok();
 
-        let mut universe = maybe_universe.unwrap_or_else(|| Universe::new());
-        let mut evctx = UiEventCtx::default();
+        let mut universe = maybe_universe.unwrap_or_else(|| {
+            let mut universe = Universe::new();
+            let mut evctx = UiEventCtx::default();
+            let mut tile_map = universe::tilemap::TileMap::new();
+            tile_map.add_at(
+                &mut evctx,
+                TilePos { x: 0, y: 0, z: 0 },
+                Tile {
+                    orientation: BuildingOrientation::new(
+                        rotations::BuildingFacing::Ny,
+                        rotations::BuildingRotation::N,
+                    ),
+                    kind: TileKind::default(),
+                },
+            );
 
-        let mut tile_map = universe::tilemap::TileMap::new();
-        tile_map.add_at(
-            &mut evctx,
-            TilePos { x: 0, y: 0, z: 0 },
-            Tile {
-                orientation: BuildingOrientation::new(
-                    rotations::BuildingFacing::Ny,
-                    rotations::BuildingRotation::N,
-                ),
-                kind: TileKind::default(),
-            },
-        );
+            let vessel = universe.world.spawn(VesselTiles(tile_map));
+            universe.world.resource_mut::<DefaultVesselRes>().0 = VesselID(vessel);
+            universe
+        });
 
-        let vessel = universe.world.spawn(VesselTiles(tile_map));
-        universe.world.resource_mut::<DefaultVesselRes>().0 = VesselID(vessel);
+        // {
+        //     let world = universe.world.query_world();
+        //     world.run(
+        //         |mut query: mcs::Query<EntityID, With<VesselTiles>>,
+        //          commands: mcs::Commands,
+        //          default: &DefaultVesselRes| {
+        //             for ent in query.iter() {
+        //                 if ent != default.0 .0 {
+        //                     commands.submit(move |world| {
+        //                         world.despawn(ent);
+        //                     });
+        //                 }
+        //             }
+        //         },
+        //     );
+        // }
 
         let universe = universe.into();
         Self {

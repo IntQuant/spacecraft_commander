@@ -60,7 +60,7 @@ pub fn upload_current_vessel_tiles(
     scene_tree: &mut SceneTreeRes,
     root_node: &mut RootNodeRes,
 ) {
-    info!("Uploading vessel");
+    info!("Uploading vessel {:?}", current_vessel.0);
 
     for mut shown in &mut scene_tree.iter_group::<Node>("static") {
         shown.queue_free()

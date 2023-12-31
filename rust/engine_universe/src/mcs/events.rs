@@ -25,7 +25,6 @@ pub(crate) fn system_handle_pending_events<'a>(
     pending_events: &mut PendingEventsRes,
     default_vessel: &DefaultVesselRes,
     player_map: &mut PlayerMap,
-    evctx: &mut UiEventCtx,
     mut players: Query<'a, &'a mut Player>,
     commands: Commands,
     actions: &mut PendingActionsRes,
